@@ -5,9 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Radzen.Blazor\Radzen.Blazor.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.0.0-preview.7.26378.106" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="11.0.0-preview.7.26378.106" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="11.0.0-preview.7.26378.106" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.*-*" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="11.*-*" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="11.*-*" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.Extensions" Version="6.0.10" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Razor" Version="6.0.10" />
