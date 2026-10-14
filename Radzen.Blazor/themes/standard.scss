@@ -156,6 +156,9 @@ $button-hover-background-size: 100% 200%, 100% 0%  !default;
 $button-focus-background-size: 100% 200%, 100% 0%  !default;
 $button-active-background-size: 100% 0%, 100% 200%  !default;
 
+// Chip
+$chip-disabled-opacity: 0.5 !default;
+
 // SelectButton
 $selectbar-background-color: transparent !default;
 $selectbar-selected-background-color: var(--rz-primary-lighter) !default;
@@ -226,6 +229,8 @@ $tabs-tab-hover-color: var(--rz-primary) !default;
 // Grid
 $grid-border-radius: 0 !default;
 $grid-data-border-shadow: 0 1px 0 0 var(--rz-base-200), 0 -1px 0 0 var(--rz-base-200);
+$grid-cell-focus-background-color: var(--rz-primary-lighter) !default;
+$grid-cell-focus-color: var(--rz-on-primary-lighter) !default;
 $grid-hover-background-color: var(--rz-primary-lighter) !default;
 $grid-hover-color: var(--rz-on-primary-lighter) !default;
 $grid-selected-background-color: lighten($rz-primary-lighter, 20%) !default;
@@ -247,12 +252,15 @@ $grid-filter-buttons-background-color: var(--rz-base-100) !default;
 $grid-clear-filter-button-background-color: var(--rz-base-200) !default;
 $grid-clear-filter-button-color: var(--rz-text-color) !default;
 $grid-header-filter-icon-hover-color: var(--rz-text-title-color) !default;
+$grid-simple-filter-icon-active-color: var(--rz-on-primary-lighter) !default;
+$grid-simple-filter-icon-active-background-color: var(--rz-primary-lighter) !default;
 $grid-border: none !default;
 $grid-shadow: none !default;
 $grid-column-resizer-helper-background-color: var(--rz-primary) !default;
 $grid-detail-template-background-color: var(--rz-base-100) !default;
 $grid-loading-indicator-color: var(--rz-on-primary-lighter) !default;
 $grid-loading-indicator-background-color: var(--rz-primary-lighter) !default;
+$grid-loading-indicator-background-opacity: 1 !default;
 $column-drag-handle-color: var(--rz-text-disabled-color) !default;
 $column-drag-handle-hover-color: var(--rz-text-title-color) !default;
 
@@ -553,6 +561,39 @@ $form-field-focus-shadow: var(--rz-input-focus-shadow) !default;
 
 // Layout
 $layout-background-color: transparent !default;
+
+// Toc
+$rz-toc-link-hover-color: var(--rz-primary-dark) !default;
+$rz-toc-link-selected-color: var(--rz-primary) !default;
+$rz-toc-link-selected-indicator-color: var(--rz-primary) !default;
+$rz-toc-horizontal-link-selected-color: var(--rz-primary) !default;
+
+// Chat
+$rz-chat-background-color: var(--rz-base-background-color) !default;
+$rz-chat-border: var(--rz-border-normal) !default;
+$rz-chat-border-radius: var(--rz-border-radius) !default;
+$rz-chat-header-padding-block: 0.5rem !default;
+$rz-chat-header-padding-inline: 1rem 0.5rem !default;
+$rz-chat-header-background-color: $rz-chat-background-color !default;
+$rz-chat-header-bottom-border: var(--rz-border-normal) !default;
+$rz-chat-header-shadow: none !default;
+$rz-chat-header-title-font-size: 1rem !default;
+$rz-chat-header-title-font-weight: 600 !default;
+$rz-chat-message-user-color: var(--rz-on-primary-lighter) !default;
+$rz-chat-message-user-background-color: var(--rz-primary-lighter) !default;
+$rz-chat-message-assistant-color: var(--rz-on-base-light) !default;
+$rz-chat-message-assistant-background-color: var(--rz-base-light) !default;
+$rz-chat-message-text-padding: 0.5rem 0.75rem !default;
+$rz-chat-message-text-border-radius: var(--rz-border-radius) !default;
+$rz-chat-avatar-size: 2rem !default;
+$rz-chat-avatar-border-radius: var(--rz-border-radius) !default;
+$rz-chat-avatar-font-size: 1rem !default;
+$rz-chat-avatar-font-weight: 700 !default;
+$rz-chat-message-callout-radius: calc(var(--rz-border-radius) / 4) !default;
+
+// Skeleton
+$skeleton-background-color: var(--rz-base-300) !default;
+$skeleton-animation-color: var(--rz-base-100) !default;
 
 @import 'fonts';
 @import 'components';

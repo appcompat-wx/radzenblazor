@@ -5,14 +5,18 @@
 
 @if (Visible)
 {
-    <div @ref=@Element style=@Style @onclick=@Toggle @attributes=@Attributes class=@GetCssClass() id=@GetId() tabindex="@(Disabled ? -1 : TabIndex)" @onkeypress="@(args => OnKeyPress(args, Toggle()))" @onkeypress:preventDefault=preventKeyPress @onkeypress:stopPropagation>
+    <div @ref=@Element style=@Style @onclick=@Toggle @attributes=@Attributes class=@GetCssClass() id=@GetId()
+         role="button" aria-haspopup="dialog" aria-expanded="@isPopupOpen.ToString().ToLowerInvariant()" aria-controls="@($"{GetId()}-popup")" aria-disabled="@(Disabled.ToString().ToLowerInvariant())"
+         tabindex="@(Disabled ? -1 : TabIndex)" @onkeypress="@(args => OnKeyPress(args, Toggle()))" @onkeypress:preventDefault=preventKeyPress @onkeypress:stopPropagation="stopKeypressPropagation">
         @if (Icon != null)
         {
             <i class="notranslate rzi" style="@(!string.IsNullOrEmpty(IconColor) ? $"color:{IconColor}" : null)">@Icon</i>
         }
         <div class="rz-colorpicker-value" style="background-color: @Value" ></div>
         <button aria-label="@ToggleAriaLabel" type="button" tabindex="-1" class="rz-colorpicker-trigger" disabled=@Disabled @onclick:preventDefault><i class="notranslate rzi" /></button>
-        <Popup Lazy=@(PopupRenderMode == PopupRenderMode.OnDemand) @ref=@Popup class="rz-colorpicker-popup" Close=@OnClosePopup Open=@Open>
+        <Popup id="@($"{GetId()}-popup")" Lazy=@(PopupRenderMode == PopupRenderMode.OnDemand) @ref=@Popup
+               role="dialog" aria-label="@PopupAriaLabel"
+               class="rz-colorpicker-popup" Close=@OnClosePopup Open=@OnPopupOpen>
             @if (ShowHSV)
             {
                 <Draggable class="rz-saturation-picker rz-colorpicker-section" style=@($"background-color: hsl({(HueHandleLeft * 360).ToInvariantString()}, 100%, 50%)") Drag=@OnSaturationMove
@@ -40,33 +44,33 @@
             {
                 <div class="rz-colorpicker-rgba rz-colorpicker-section" @onmousedown:stopPropagation> 
                     <div class="rz-color-box">
-                        <RadzenTextBox Value=@Hex @oninput=@(args => ChangeRGB(args.Value)) aria-label=@HexText />
+                        <RadzenTextBox Value=@Hex @oninput=@(args => ChangeRGB(args.Value!)) aria-label=@HexText />
                         @HexText
                     </div>
                     <div class="rz-color-box">
                         <RadzenNumeric TValue="double" Value=@Red Min="0" Max="255" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", RedText }})"
-                            @oninput=@(args => ChangeColor(args.Value, (color, value) => color.Red = value)) 
+                            @oninput=@(args => ChangeColor(args.Value!, (color, value) => color.Red = value)) 
                             Change=@(red => ChangeColor(red, (color, value) => color.Red = value)) 
                         />
                         @RedText
                     </div>
                     <div class="rz-color-box">
                         <RadzenNumeric TValue="double" Value=@Green Min="0" Max="255" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", GreenText }})"
-                            @oninput=@(args => ChangeColor(args.Value, (color, value) => color.Green = value)) 
+                            @oninput=@(args => ChangeColor(args.Value!, (color, value) => color.Green = value)) 
                             Change=@(green => ChangeColor(green, (color, value) => color.Green = value)) 
                         />
                         @GreenText
                     </div>
                     <div class="rz-color-box">
                         <RadzenNumeric TValue="double" Value=@Blue Min="0" Max="255" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", BlueText }})"
-                            @oninput=@(args => ChangeColor(args.Value, (color, value) => color.Blue = value)) 
+                            @oninput=@(args => ChangeColor(args.Value!, (color, value) => color.Blue = value)) 
                             Change=@(blue => ChangeColor(blue, (color, value) => color.Blue = value)) 
                         />
                         @BlueText
                     </div>
                     <div class="rz-color-box">
                         <RadzenNumeric TValue="double" Value=@Alpha Min="0" Max="100" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", AlphaText }})"
-                            @oninput=@(args => ChangeAlpha(args.Value)) 
+                            @oninput=@(args => ChangeAlpha(args.Value!)) 
                             Change=@(alpha => ChangeAlpha(alpha)) 
                         />
                         @AlphaText

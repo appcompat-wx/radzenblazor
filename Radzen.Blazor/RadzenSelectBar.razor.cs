@@ -1,113 +1,134 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Radzen.Blazor.Rendering;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace Radzen.Blazor
 {
     /// <summary>
-    /// RadzenSelectBar component.
+    /// A segmented button control component that displays options as a group of connected buttons for single or multiple selection.
+    /// RadzenSelectBar provides a visually distinct way to select from a limited set of options, commonly used for view modes, filters, or categories.
+    /// Presents options as a row or column of connected buttons where selected items are highlighted. Ideal when you have 2-7 options and want a more prominent UI than radio buttons or checkboxes.
+    /// Supports single selection (default) or multiple selection via Multiple property, Horizontal (side-by-side) or Vertical (stacked) button orientation, binding to a data source or static declaration of items,
+    /// custom item templates with text/icons/images, ExtraSmall/Small/Medium/Large button sizes, disabled items, and keyboard navigation (Arrow keys and Space/Enter) for accessibility.
+    /// Common uses include view toggles (list/grid), time period selectors (day/week/month), category filters, or any small set of mutually exclusive options.
     /// </summary>
-    /// <typeparam name="TValue">The type of the value.</typeparam>
+    /// <typeparam name="TValue">The type of the selected value. Can be a single value or IEnumerable for multiple selection.</typeparam>
     /// <example>
+    /// Basic select bar:
     /// <code>
-    /// &lt;RadzenSelectBar @bind-Value=@values TValue="IEnumerable&lt;int&gt;" Multiple="true"&gt;
+    /// &lt;RadzenSelectBar @bind-Value=@viewMode TValue="string"&gt;
     ///     &lt;Items&gt;
-    ///         &lt;RadzenSelectBarItem Text="Orders" Value="1" /&gt;
-    ///         &lt;RadzenSelectBarItem Text="Employees" Value="2" /&gt;
-    ///         &lt;RadzenSelectBarItem Text="Customers" Value="3" /&gt;
+    ///         &lt;RadzenSelectBarItem Text="List" Value="list" Icon="list" /&gt;
+    ///         &lt;RadzenSelectBarItem Text="Grid" Value="grid" Icon="grid_view" /&gt;
+    ///     &lt;/Items&gt;
+    /// &lt;/RadzenSelectBar&gt;
+    /// </code>
+    /// Multiple selection for filters:
+    /// <code>
+    /// &lt;RadzenSelectBar @bind-Value=@selectedCategories TValue="IEnumerable&lt;int&gt;" Multiple="true" Size="ButtonSize.Small"&gt;
+    ///     &lt;Items&gt;
+    ///         &lt;RadzenSelectBarItem Text="Electronics" Value="1" /&gt;
+    ///         &lt;RadzenSelectBarItem Text="Clothing" Value="2" /&gt;
+    ///         &lt;RadzenSelectBarItem Text="Books" Value="3" /&gt;
     ///     &lt;/Items&gt;
     /// &lt;/RadzenSelectBar&gt;
     /// </code>
     /// </example>
     public partial class RadzenSelectBar<TValue> : FormComponent<TValue>, IRadzenSelectBar
     {
-        private string getButtonSize()
-        {
-            return Size == ButtonSize.Medium ? "md" : Size == ButtonSize.Large ? "lg" : Size == ButtonSize.Small ? "sm" : "xs";
-        }
-
         /// <summary>
-        /// Gets or sets the size. Set to <c>ButtonSize.Medium</c> by default.
+        /// Gets or sets the size of the buttons in the select bar.
+        /// Controls the button padding, font size, and overall dimensions for all items.
         /// </summary>
-        /// <value>The size.</value>
+        /// <value>The button size. Default is <see cref="ButtonSize.Medium"/>.</value>
         [Parameter]
         public ButtonSize Size { get; set; } = ButtonSize.Medium;
 
         /// <summary>
-        /// Gets or sets the orientation. Set to <c>Orientation.Horizontal</c> by default.
+        /// Gets or sets the layout direction of the select bar.
+        /// Horizontal displays buttons side-by-side in a row, Vertical stacks buttons in a column.
         /// </summary>
-        /// <value>The orientation.</value>
+        /// <value>The orientation. Default is <see cref="Orientation.Horizontal"/>.</value>
         [Parameter]
         public Orientation Orientation { get; set; } = Orientation.Horizontal;
 
 
-        ClassList ButtonClassList(RadzenSelectBarItem item)
-            => ClassList.Create($"rz-button rz-button-{getButtonSize()} rz-button-text-only")
-                        .Add("rz-state-active", IsSelected(item))
-                        .AddDisabled(Disabled || item.Disabled);
+        string ButtonClass(RadzenSelectBarItem item) => ClassList.Create($"rz-button rz-button-text-only")
+                                                                 .AddButtonSize(Size)
+                                                                 .Add("rz-state-active", IsSelected(item))
+                                                                 .Add("rz-state-focused", IsFocused(item) && focused)
+                                                                 .AddDisabled(Disabled || item.Disabled)
+                                                                 .ToString();
 
         /// <summary>
         /// Gets or sets the value property.
         /// </summary>
         /// <value>The value property.</value>
         [Parameter]
-        public string ValueProperty { get; set; }
+        public string? ValueProperty { get; set; }
 
         /// <summary>
         /// Gets or sets the text property.
         /// </summary>
         /// <value>The text property.</value>
         [Parameter]
-        public string TextProperty { get; set; }
+        public string? TextProperty { get; set; }
 
-        IEnumerable<RadzenSelectBarItem> allItems
-        {
-            get
-            {
-                return items.Concat((Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()).Select(i =>
-                {
-                    var item = new RadzenSelectBarItem();
-                    item.SetText((string)PropertyAccess.GetItemOrValueFromProperty(i, TextProperty));
-                    item.SetValue(PropertyAccess.GetItemOrValueFromProperty(i, ValueProperty));
-                    return item;
-                }));
-            }
-        }
+        List<RadzenSelectBarItem> allItems = new();
 
-        IEnumerable _data = null;
+        private IEnumerable? data;
 
         /// <summary>
         /// Gets or sets the data.
         /// </summary>
         /// <value>The data.</value>
         [Parameter]
-        public virtual IEnumerable Data
+        public virtual IEnumerable? Data
         {
             get
             {
-                return _data;
+                return data;
             }
             set
             {
-                if (_data != value)
+                if (data != value)
                 {
-                    _data = value;
+                    data = value;
                     StateHasChanged();
                 }
             }
         }
 
         /// <inheritdoc />
-        protected override string GetComponentCssClass()
-            => GetClassList("rz-selectbutton rz-buttonset")
-                .Add($"rz-selectbutton-{(Orientation == Orientation.Vertical ? "vertical" : "horizontal")}")
-                .Add($"rz-buttonset-{items.Count}")
-                .ToString();
+        protected override void OnParametersSet()
+        {
+            base.OnParametersSet();
+
+            UpdateAllItems();
+        }
+
+        void UpdateAllItems()
+        {
+            allItems = items.Concat((Data != null ? Data.Cast<object>() : Enumerable.Empty<object>()).Select(i =>
+            {
+                var item = new RadzenSelectBarItem();
+                item.SetText($"{PropertyAccess.GetItemOrValueFromProperty(i, TextProperty ?? string.Empty)}");
+                item.SetValue(PropertyAccess.GetItemOrValueFromProperty(i, ValueProperty ?? string.Empty)!);
+                return item;
+            })).ToList();
+        }
+
+        /// <inheritdoc />
+        protected override string GetComponentCssClass() => GetClassList("rz-selectbar rz-buttonset")
+                                                            .Add($"rz-selectbar-{(Orientation == Orientation.Vertical ? "vertical" : "horizontal")}")
+                                                            .Add($"rz-buttonset-{allItems.Count}")
+                                                            .ToString();
 
         /// <summary>
         /// Gets or sets a value indicating whether this <see cref="RadzenSelectBar{TValue}"/> is multiple.
@@ -121,7 +142,7 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The items.</value>
         [Parameter]
-        public RenderFragment Items { get; set; }
+        public RenderFragment? Items { get; set; }
 
         List<RadzenSelectBarItem> items = new List<RadzenSelectBarItem>();
 
@@ -134,6 +155,7 @@ namespace Radzen.Blazor
             if (items.IndexOf(item) == -1)
             {
                 items.Add(item);
+                UpdateAllItems();
                 StateHasChanged();
             }
         }
@@ -144,9 +166,9 @@ namespace Radzen.Blazor
         /// <param name="item">The item.</param>
         public void RemoveItem(RadzenSelectBarItem item)
         {
-            if (items.Contains(item))
+            if (items.Remove(item))
             {
-                items.Remove(item);
+                UpdateAllItems();
                 if (!disposed)
                 {
                     try { InvokeAsync(StateHasChanged); } catch { }
@@ -161,6 +183,7 @@ namespace Radzen.Blazor
         /// <returns><c>true</c> if the specified item is selected; otherwise, <c>false</c>.</returns>
         protected bool IsSelected(RadzenSelectBarItem item)
         {
+            ArgumentNullException.ThrowIfNull(item);
             if (Multiple)
             {
                 return Value != null && ((IEnumerable)Value).Cast<object>().Contains(item.Value);
@@ -189,8 +212,11 @@ namespace Radzen.Blazor
         /// <param name="item">The item.</param>
         protected async Task SelectItem(RadzenSelectBarItem item)
         {
+            ArgumentNullException.ThrowIfNull(item);
             if (Disabled || item.Disabled)
                 return;
+
+            focusedIndex = allItems.IndexOf(item);
 
             if (Multiple)
             {
@@ -198,20 +224,23 @@ namespace Radzen.Blazor
 
                 var selectedValues = Value != null ? new List<dynamic>(((IEnumerable)Value).Cast<dynamic>()) : new List<dynamic>();
 
-                if (!selectedValues.Contains(item.Value))
+                if (item.Value != null && !selectedValues.Contains(item.Value))
                 {
                     selectedValues.Add(item.Value);
                 }
                 else
                 {
-                    selectedValues.Remove(item.Value);
+                    if (item.Value != null)
+                    {
+                        selectedValues.Remove(item.Value);
+                    }
                 }
 
                 Value = (TValue)selectedValues.AsQueryable().Cast(type);
             }
             else
             {
-                Value = (TValue)item.Value;
+                Value = item.Value is TValue typedValue ? typedValue : default!;
             }
 
             await ValueChanged.InvokeAsync(Value);
@@ -229,21 +258,74 @@ namespace Radzen.Blazor
             StateHasChanged();
         }
 
+        bool focused;
+        int focusedIndex = -1;
         bool preventKeyPress = true;
-        async Task OnKeyPress(KeyboardEventArgs args, Task task)
+        bool stopKeydownPropagation;
+        async Task OnKeyPress(KeyboardEventArgs args)
         {
             var key = args.Code != null ? args.Code : args.Key;
 
-            if (key == "Space" || key == "Enter")
+            var item = allItems.ElementAtOrDefault(focusedIndex) ?? allItems.FirstOrDefault();
+
+            if (item == null) return;
+
+            if (key == "ArrowLeft" || key == "ArrowRight")
             {
                 preventKeyPress = true;
+                stopKeydownPropagation = true;
 
-                await task;
+                var direction = key == "ArrowLeft" ? -1 : 1;
+
+                focusedIndex = Math.Clamp(focusedIndex + direction, 0, allItems.FindLastIndex(t => t.Visible && !t.Disabled));
+
+                while (allItems.ElementAtOrDefault(focusedIndex)?.Disabled == true)
+                {
+                    focusedIndex = focusedIndex + direction;
+                }               
+            }
+            else if (key == "Home" || key == "End")
+            {
+                preventKeyPress = true;
+                stopKeydownPropagation = true;
+
+                focusedIndex = key == "Home" ? 0 : allItems.Where(t => HasInvisibleBefore(item) ? true : t.Visible).Count() - 1;
+            }
+            else if (key == "Space" || key == "Enter")
+            {
+                preventKeyPress = true;
+                stopKeydownPropagation = true;
+
+                if (focusedIndex >= 0 && focusedIndex < allItems.Where(t => HasInvisibleBefore(item) ? true : t.Visible).Count())
+                {
+                    await SelectItem(allItems.Where(t => HasInvisibleBefore(item) ? true : t.Visible).ToList()[focusedIndex]);
+                }
             }
             else
             {
                 preventKeyPress = false;
+                stopKeydownPropagation = false;
             }
+        }
+
+        bool HasInvisibleBefore(RadzenSelectBarItem item)
+        {
+            return allItems.Take(allItems.IndexOf(item)).Any(t => !t.Visible && !t.Disabled);
+        }
+
+        bool IsFocused(RadzenSelectBarItem item)
+        {
+            return allItems.ToList().IndexOf(item) == focusedIndex;
+        }
+
+        void OnFocus()
+        {
+            focusedIndex = focusedIndex == -1 ? 0 : focusedIndex;
+            focused = true;
+        }
+        void OnBlur()
+        {
+            focused = false;
         }
     }
 }

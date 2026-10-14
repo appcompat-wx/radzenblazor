@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
+using Radzen.Blazor.Rendering;
+using System;
 using System.Collections.Generic;
 
 namespace Radzen.Blazor
@@ -14,26 +16,26 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The attributes.</value>
         [Parameter]
-        public IReadOnlyDictionary<string, object> InputAttributes { get; set; }
+        public IReadOnlyDictionary<string, object>? InputAttributes { get; set; }
 
-        private string _text;
+        private string? text;
 
         /// <summary>
         /// Gets or sets the text.
         /// </summary>
         /// <value>The text.</value>
         [Parameter]
-        public string Text
+        public string? Text
         {
             get
             {
-                return _text;
+                return text;
             }
             set
             {
-                if (value != _text)
+                if (value != text)
                 {
-                    _text = value;
+                    text = value;
 
                     if (List != null)
                         List.Refresh();
@@ -46,14 +48,14 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The template.</value>
         [Parameter]
-        public RenderFragment<RadzenRadioButtonListItem<TValue>> Template { get; set; }
+        public RenderFragment<RadzenRadioButtonListItem<TValue>>? Template { get; set; }
 
         /// <summary>
         /// Gets or sets the value.
         /// </summary>
         /// <value>The value.</value>
         [Parameter]
-        public TValue Value { get; set; }
+        public TValue? Value { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this <see cref="RadzenRadioButtonListItem{TValue}"/> is disabled.
@@ -62,25 +64,25 @@ namespace Radzen.Blazor
         [Parameter]
         public virtual bool Disabled { get; set; }
 
-        RadzenRadioButtonList<TValue> _list;
+        private RadzenRadioButtonList<TValue>? list;
 
         /// <summary>
         /// Gets or sets the list.
         /// </summary>
         /// <value>The list.</value>
         [CascadingParameter]
-        public RadzenRadioButtonList<TValue> List
+        public RadzenRadioButtonList<TValue>? List
         {
             get
             {
-                return _list;
+                return list;
             }
             set
             {
-                if (_list != value)
+                if (list != value)
                 {
-                    _list = value;
-                    _list.AddItem(this);
+                    list = value;
+                    list?.AddItem(this);
                 }
             }
         }
@@ -92,6 +94,7 @@ namespace Radzen.Blazor
         {
             base.Dispose();
             List?.RemoveItem(this);
+            GC.SuppressFinalize(this);
         }
 
         internal void SetText(string value)
@@ -114,14 +117,16 @@ namespace Radzen.Blazor
             Visible = value;
         }
 
-        internal string GetItemId()
+        internal string? GetItemId()
         {
             return GetId();
         }
 
         internal string GetItemCssClass()
         {
-            return GetCssClass();
+            return ClassList.Create(GetCssClass())
+                .AddDisabled(Disabled)
+                .ToString();
         }
 
         /// <inheritdoc />

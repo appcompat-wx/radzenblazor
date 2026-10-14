@@ -1,6 +1,7 @@
 // Blazor
 @import 'components/blazor/utilities';
 @import 'components/blazor/spacing';
+@import 'components/blazor/animations';
 @import 'components/blazor/typography';
 @import 'components/blazor/icons';
 @import 'components/blazor/image';
@@ -62,6 +63,9 @@
 @import 'components/blazor/gauge';
 @import 'components/blazor/progressbar';
 @import 'components/blazor/chart';
+@import 'components/blazor/sankey';
+@import 'components/blazor/spider';
+@import 'components/blazor/gantt';
 @import 'components/blazor/link';
 @import 'components/blazor/editor';
 @import 'components/blazor/colorpicker';
@@ -76,4 +80,10 @@
 @import 'components/blazor/picklist';
 @import 'components/blazor/carousel';
 @import 'components/blazor/timespanpicker';
+@import 'components/blazor/toc';
+@import 'components/blazor/expander';
+@import 'components/blazor/chat';
+@import 'components/blazor/skeleton';
+@import 'components/blazor/fab';
+@import 'components/blazor/pivot';
 @import 'css-variables';

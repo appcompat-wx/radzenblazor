@@ -16,6 +16,14 @@ namespace Radzen.Blazor
         /// The data item for which the appointment is created.
         /// </summary>
         /// <value>The data.</value>
-        public TItem Data { get; set; }
+        public TItem? Data { get; set; }
+        /// <summary>
+        /// The horizontal position (X) of the mouse pointer in viewport coordinates.
+        /// </summary>
+        public double ClientX { get; set; }
+        /// <summary>
+        /// The vertical position (Y) of the mouse pointer in viewport coordinates.
+        /// </summary>
+        public double ClientY { get; set; }
     }
 }

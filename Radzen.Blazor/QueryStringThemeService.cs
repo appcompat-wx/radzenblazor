@@ -38,21 +38,21 @@ namespace Radzen
         private readonly NavigationManager navigationManager;
         private readonly ThemeService themeService;
 
-#if NET7_0_OR_GREATER
-        private readonly IDisposable registration;
-#endif
-        private readonly QueryStringThemeServiceOptions options;
-        private readonly PropertyInfo hasAttachedJSRuntimeProperty;
+        private readonly IDisposable? registration;
+        private readonly QueryStringThemeServiceOptions? options;
+        private readonly PropertyInfo? hasAttachedJSRuntimeProperty;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="QueryStringThemeService" /> class.
         /// </summary>
         public QueryStringThemeService(NavigationManager navigationManager, ThemeService themeService, IOptions<QueryStringThemeServiceOptions> options)
         {
+            ArgumentNullException.ThrowIfNull(navigationManager);
+            ArgumentNullException.ThrowIfNull(themeService);
+            ArgumentNullException.ThrowIfNull(options);
+
             this.navigationManager = navigationManager;
-
             this.themeService = themeService;
-
             this.options = options.Value;
 
             hasAttachedJSRuntimeProperty = navigationManager.GetType().GetProperty("HasAttachedJSRuntime");
@@ -72,23 +72,23 @@ namespace Radzen
 
             themeService.ThemeChanged += OnThemeChanged;
 
-#if NET7_0_OR_GREATER
             try
             {
                 registration = navigationManager.RegisterLocationChangingHandler(OnLocationChanging);
             }
             catch (NotSupportedException)
             {
-                // HttpNavigationManager does not support that
+                // HttpNavigationManager does not support RegisterLocationChangingHandler.
+                // This means we are server-side rendering. Unsubscribe from ThemeChanged to
+                // avoid calling NavigateTo which would cause a 302 redirect during prerendering.
+                themeService.ThemeChanged -= OnThemeChanged;
             }
-#endif
         }
 
-        private bool RequiresChange((string theme, bool? wcag, bool? rightToLeft) state) =>
+        private bool RequiresChange((string? theme, bool? wcag, bool? rightToLeft) state) =>
             (state.theme != null && !string.Equals(themeService.Theme, state.theme, StringComparison.OrdinalIgnoreCase)) ||
             themeService.Wcag != state.wcag || themeService.RightToLeft != state.rightToLeft;
 
-#if NET7_0_OR_GREATER
         private ValueTask OnLocationChanging(LocationChangingContext context)
         {
             var state = GetStateFromQueryString(context.TargetLocation);
@@ -102,47 +102,47 @@ namespace Radzen
 
             return ValueTask.CompletedTask;
         }
-#endif
 
-        private (string theme, bool? wcag, bool? rightToLeft) GetStateFromQueryString(string uri)
+        private (string? theme, bool? wcag, bool? rightToLeft) GetStateFromQueryString(string uri)
         {
-            var queryString = uri.Contains('?') ? uri[(uri.IndexOf('?') + 1)..] : string.Empty;
+            var queryString = uri.Contains('?', StringComparison.Ordinal) ? uri[(uri.IndexOf('?', StringComparison.Ordinal) + 1)..] : string.Empty;
 
-            var query = HttpUtility.ParseQueryString(queryString.Contains('#') ? queryString[..queryString.IndexOf('#')] : queryString);
+            var query = HttpUtility.ParseQueryString(queryString.Contains('#', StringComparison.Ordinal) ? queryString[..queryString.IndexOf('#', StringComparison.Ordinal)] : queryString);
 
-            bool? wcag = query.Get(options.WcagParameter) != null ? query.Get(options.WcagParameter) == "true" : null;
-            bool? rtl = query.Get(options.RightToLeftParameter) != null ? query.Get(options.RightToLeftParameter) == "true" : null;
+            bool? wcag = options?.WcagParameter != null ? (query.Get(options.WcagParameter) != null ? query.Get(options.WcagParameter) == "true" : null) : null;
+            bool? rtl = options?.RightToLeftParameter != null ? (query.Get(options.RightToLeftParameter) != null ? query.Get(options.RightToLeftParameter) == "true" : null) : null;
 
-            return (query.Get(options.ThemeParameter), wcag, rtl);
+            return (query?.Get(options?.ThemeParameter), wcag, rtl);
         }
 
-        private string GetUriWithStateQueryParameters(string uri)
+        /// <summary>
+        /// Returns the specified URI with the current theme, WCAG, and right-to-left state
+        /// appended as query parameters. Use this when building hrefs that must preserve the
+        /// active theme across navigation - it produces a cleanly URL-encoded query rather
+        /// than reusing whatever query happens to be on the current URI.
+        /// </summary>
+        public string GetUriWithStateQueryParameters(string uri)
         {
-            var parameters = new Dictionary<string, object>
+            var parameters = new Dictionary<string, object?>
             {
-                { options.ThemeParameter, themeService.Theme.ToLowerInvariant() },
+                { options?.ThemeParameter ?? string.Empty, themeService?.Theme?.ToLowerInvariant() ?? string.Empty },
             };
 
-            if (themeService.Wcag.HasValue)
+            if (themeService?.Wcag != null && options?.WcagParameter != null)
             {
                 parameters.Add(options.WcagParameter, themeService.Wcag.Value ? "true" : "false");
             }
 
-            if (themeService.RightToLeft.HasValue)
+            if (themeService?.RightToLeft != null && options?.RightToLeftParameter != null)
             {
                 parameters.Add(options.RightToLeftParameter, themeService.RightToLeft.Value ? "true" : "false");
             }
 
-            return navigationManager.GetUriWithQueryParameters(uri, parameters);
+            return navigationManager.GetUriWithQueryParameters(uri, new Dictionary<string, object?>(parameters));
         }
 
         private void OnThemeChanged()
         {
-            // HttpNavigationManager doesn't support NavigateTo during SSR
-            if (navigationManager.GetType().Name == "HttpNavigationManager")
-            {
-                return;
-            }
 
             if (hasAttachedJSRuntimeProperty is null || hasAttachedJSRuntimeProperty.GetValue(navigationManager) is true)
             {
@@ -158,9 +158,9 @@ namespace Radzen
         {
             themeService.ThemeChanged -= OnThemeChanged;
 
-#if NET7_0_OR_GREATER
             registration?.Dispose();
-#endif
+
+            GC.SuppressFinalize(this);
         }
     }
 

@@ -412,8 +412,6 @@ $button-sizes: (
 $badge-font-weight: 500 !default;
 
 // Chip
-$chip-padding-block: 0.125rem !default;
-$chip-padding-inline: 0.75rem 0.125rem !default;
 $chip-background-color: var(--rz-base-600);
 $chip-border-radius: calc(4 * var(--rz-border-radius)) !default;
 
@@ -616,7 +614,7 @@ $steps-number-background-color: var(--rz-base-600) !default;
 $steps-number-color: var(--rz-text-secondary-color) !default;
 
 .rz-steps {
-  [role='tablist'] {
+  > ul {
     display: flex;
   }
   .rz-steps-item {
@@ -882,7 +880,7 @@ $selectbar-selected-color: var(--rz-on-primary-lighter) !default;
 $selectbar-selected-border: var(--rz-border-base-600) !default;
 $selectbar-border-radius: var(--rz-border-radius) !default;
 
-.rz-selectbutton {
+.rz-selectbar {
   .rz-button {
     box-shadow: none;
     &:hover {
@@ -1076,6 +1074,8 @@ $grid-apply-filter-button-shadow: none !default;
 $grid-header-filter-icon-margin-inline: auto 1rem !default;
 $grid-header-filter-icon-hover-color: var(--rz-text-title-color) !default;
 $grid-header-filter-icon-font-size: 1.25rem !default;
+$grid-simple-filter-icon-active-color: var(--rz-on-primary-lighter) !default;
+$grid-simple-filter-icon-active-background-color: var(--rz-primary-lighter) !default;
 $grid-border: var(--rz-border-base-600) !default;
 $grid-sort-icon-width: 1.25rem !default;
 $grid-shadow: none !default;
@@ -1546,6 +1546,26 @@ $form-field-label-inset-inline-start: 0.6875rem !default;
 $form-field-label-textarea-top: 0.5rem !default;
 $form-field-label-floating-top: -0.5625rem !default;
 $form-field-helper-padding: 0 1rem !default;
+
+// Toc
+$rz-toc-link-hover-color: var(--rz-primary-dark) !default;
+$rz-toc-link-selected-color: var(--rz-primary) !default;
+$rz-toc-link-selected-indicator-inset-block: 0 !default;
+$rz-toc-link-selected-indicator-color: var(--rz-primary) !default;
+$rz-toc-horizontal-link-selected-color: var(--rz-primary) !default;
+$rz-toc-horizontal-link-selected-indicator-inset-inline: 0 !default;
+
+.rz-toc-link {
+  @include rz-ripple($pseudo: true);
+}
+
+// Skeleton
+$skeleton-background-color: var(--rz-base-400) !default;
+$skeleton-animation-color: var(--rz-base-300) !default;
+
+// FAB
+$fab-border-radius: var(--rz-border-radius-10) !default;
+$fab-active-border-radius: var(--rz-border-radius-10) !default;
 
 @import 'fonts';
 @import 'components';

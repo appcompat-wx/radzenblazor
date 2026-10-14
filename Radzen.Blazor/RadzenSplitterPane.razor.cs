@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using Radzen.Blazor.Rendering;
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,10 +14,10 @@ namespace Radzen.Blazor
     /// </summary>
     public partial class RadzenSplitterPane : RadzenComponent
     {
-        RadzenSplitter _splitter;
-        private string _size;
+        private RadzenSplitter? splitter;
+        private string? size;
 
-        internal string SizeRuntine { get; set; }
+        internal string? SizeRuntine { get; set; }
 
         internal bool SizeAuto { get; set; }
 
@@ -24,13 +25,15 @@ namespace Radzen.Blazor
 
         internal bool IsLastResizable
         {
-            get { return Splitter.Panes.LastOrDefault(o => o.Resizable && !o.GetCollapsed()) == this; }
+            get { return Splitter?.Panes.LastOrDefault(o => o.Resizable && !o.GetCollapsed()) == this; }
         }
 
-        internal bool IsLast => Splitter.Panes.Count - 1 == Index;
+        internal bool IsLast => Splitter?.Panes.Count - 1 == Index;
 
-        internal RadzenSplitterPane Next()
+        internal RadzenSplitterPane? Next()
         {
+            if (Splitter == null)
+                return null;
             return Index <= Splitter.Panes.Count - 2
                 ? Splitter.Panes[Index + 1]
                 : null;
@@ -43,7 +46,7 @@ namespace Radzen.Blazor
                 var paneNext = Next();
 
                 if (GetCollapsed()
-                    || (Index == Splitter.Panes.Count - 2 && !paneNext.IsResizable)
+                    || (Splitter != null && Index == Splitter.Panes.Count - 2 && paneNext?.IsResizable == false)
                     || (IsLastResizable && paneNext != null && paneNext.GetCollapsed())
                     )
                     return false;
@@ -105,7 +108,7 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The child content.</value>
         [Parameter]
-        public RenderFragment ChildContent { get; set; }
+        public RenderFragment? ChildContent { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this <see cref="RadzenSplitterPane"/> is collapsible.
@@ -134,24 +137,24 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The maximum value.</value>
         [Parameter]
-        public string Max { get; set; }
+        public string? Max { get; set; }
 
         /// <summary>
         /// Determines the minimum value.
         /// </summary>
         /// <value>The minimum value.</value>
         [Parameter]
-        public string Min { get; set; }
+        public string? Min { get; set; }
 
         /// <summary>
         /// Gets or sets the size.
         /// </summary>
         /// <value>The size.</value>
         [Parameter]
-        public string Size
+        public string? Size
         {
-            get => SizeRuntine ?? _size;
-            set => _size = value;
+            get => SizeRuntine ?? size;
+            set => size = value;
         }
 
         /// <summary>
@@ -166,15 +169,15 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The splitter.</value>
         [CascadingParameter]
-        public RadzenSplitter Splitter
+        public RadzenSplitter? Splitter
         {
-            get => _splitter;
+            get => splitter;
             set
             {
-                if (_splitter != value)
+                if (splitter != value)
                 {
-                    _splitter = value;
-                    _splitter.AddPane(this);
+                    splitter = value;
+                    splitter?.AddPane(this);
                 }
             }
         }
@@ -194,6 +197,7 @@ namespace Radzen.Blazor
         {
             base.Dispose();
             Splitter?.RemovePane(this);
+            GC.SuppressFinalize(this);
         }
 
         /// <inheritdoc />
@@ -215,7 +219,7 @@ namespace Radzen.Blazor
         /// <inheritdoc />
         protected override string GetComponentCssClass()
         {
-            if (Attributes != null && Attributes.TryGetValue("class", out var @class) && !string.IsNullOrEmpty(Convert.ToString(@class)))
+            if (Attributes != null && Attributes.TryGetValue("class", out var @class) && !string.IsNullOrEmpty(Convert.ToString(@class, CultureInfo.InvariantCulture)))
             {
                 return $"rz-splitter-pane rz-splitter-pane-{ClassName} {@class}";
             }
@@ -232,7 +236,9 @@ namespace Radzen.Blazor
             return $"rz-splitter-bar rz-splitter-bar-{ClassName}";
         }
 
-        bool preventKeyPress = false;
+        bool preventKeyPress;
+        bool stopKeydownPropagation;
+        bool stopKeypressPropagation;
         async Task OnKeyPress(KeyboardEventArgs args, bool? expand = null)
         {
             var key = args.Code != null ? args.Code : args.Key;
@@ -240,21 +246,22 @@ namespace Radzen.Blazor
             if (key == "Space" || key == "Enter")
             {
                 preventKeyPress = true;
+                stopKeypressPropagation = true;
 
-                string id = null;
+                string? id = null;
 
-                if (expand == true)
+                if (expand == true && Splitter != null)
                 {
                     id = GetId() + "-collapse";
                     await Splitter.OnExpand(Index);
                 }
-                else if (expand == false)
+                else if (expand == false && Splitter != null)
                 {
                     id = GetId() + "-expand";
                     await Splitter.OnCollapse(Index);
                 }
 
-                if (!string.IsNullOrEmpty(id))
+                if (!string.IsNullOrEmpty(id) && JSRuntime != null)
                 {
                     await JSRuntime.InvokeVoidAsync("eval",
                         "setTimeout(function(){ document.getElementById('" + id + "').focus(); }, 200)");
@@ -263,7 +270,9 @@ namespace Radzen.Blazor
             else if (key == "ArrowLeft" || key == "ArrowRight" || key == "ArrowUp" || key == "ArrowDown")
             {
                 preventKeyPress = true;
+                stopKeydownPropagation = true;
 
+                if (JSRuntime == null || Splitter == null) return;
                 var rect = await JSRuntime.InvokeAsync<Rect>("Radzen.clientRect", GetId() + "-resize");
 
                 await Splitter.StartResize(new PointerEventArgs()
@@ -281,6 +290,32 @@ namespace Radzen.Blazor
             else
             {
                 preventKeyPress = false;
+                stopKeydownPropagation = false;
+                stopKeypressPropagation = false;
+            }
+        }
+
+        async Task OnDoubleClick(MouseEventArgs args)
+        {
+            // Only handle double-click if the pane or its next pane is collapsible
+            if (!IsCollapsible && !IsExpandable)
+                return;
+
+            if (Splitter == null) return;
+            // If the current pane is collapsed, expand it
+            if (GetCollapsed())
+            {
+                await Splitter.OnExpand(Index);
+            }
+            // If the current pane can be collapsed, collapse it
+            else if (IsCollapsible)
+            {
+                await Splitter.OnCollapse(Index);
+            }
+            // If the next pane is the last and is expandable, expand it
+            else if (IsExpandable)
+            {
+                await Splitter.OnExpand(Index);
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +10,7 @@ namespace Radzen.Blazor
     /// RadzenDataFilter component.
     /// </summary>
     /// <typeparam name="TItem">The type of the item.</typeparam>
-#if NET6_0_OR_GREATER
     [CascadingTypeParameter(nameof(TItem))]
-#endif
     public partial class RadzenDataFilter<TItem> : RadzenComponent
     {
         /// <inheritdoc />
@@ -26,19 +24,19 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The properties.</value>
         [Parameter]
-        public RenderFragment Properties { get; set; }
+        public RenderFragment? Properties { get; set; }
 
         /// <summary>
         /// The data
         /// </summary>
-        IEnumerable<TItem> _data;
+        IEnumerable<TItem>? _data;
 
         /// <summary>
         /// Gets or sets the data.
         /// </summary>
         /// <value>The data.</value>
         [Parameter]
-        public IEnumerable<TItem> Data
+        public IEnumerable<TItem>? Data
         {
             get
             {
@@ -54,7 +52,7 @@ namespace Radzen.Blazor
             }
         }
 
-        IQueryable<TItem> _view = null;
+        IQueryable<TItem>? _view;
 
         /// <summary>
         /// Gets the view.
@@ -322,10 +320,7 @@ namespace Radzen.Blazor
 
         internal void RemoveProperty(RadzenDataFilterProperty<TItem> property)
         {
-            if (properties.Contains(property))
-            {
-                properties.Remove(property);
-            }
+            properties.Remove(property);
 
             if (!disposed)
             {
@@ -360,7 +355,7 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The filter date format.</value>
         [Parameter]
-        public string FilterDateFormat { get; set; }
+        public string FilterDateFormat { get; set; } = string.Empty;
 
         internal async Task AddFilter(bool isGroup)
         {

@@ -1,4 +1,4 @@
-﻿@using Radzen
+@using Radzen
 @using Radzen.Blazor.Rendering
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Linq.Expressions
@@ -24,23 +24,25 @@
         <input @ref="@input" type="text" name="@Name" id="@Name" value="@FormattedValue"
                    disabled="@Disabled" readonly="@IsInputAllowed" autocomplete="off" class="@GetInputClass()"
                    placeholder="@Placeholder" tabindex="@(Disabled ? "-1" : TabIndex.ToString())" @attributes="@InputAttributes"
-                   @onchange="@(args => SetValueFromInput(args.Value?.ToString()))"
+                   @onchange="@(args => { var value = args.Value?.ToString(); if (value != null) _ = SetValueFromInput(value); })"
                    @onclick="@(() => ClickInputField())" @onkeydown="@PressKey"
-                   @onkeydown:preventDefault="@_preventKeyPress" @onkeydown:stopPropagation />
+                   @onkeydown:preventDefault="@preventKeyPress" @onkeydown:stopPropagation="stopKeydownPropagation" />
         @if (ShowPopupButton)
         {
-            <button type="button" aria-label="@TogglePopupAriaLabel" disabled="@Disabled"
-                    tabindex="-1" class="@GetTogglePopupButtonClass()"
+            <button type="button" aria-label="@TogglePopupAriaLabel" aria-haspopup="dialog"
+                    aria-expanded="@isPopupOpen.ToString().ToLowerInvariant()" aria-controls="@($"{GetId()}-popup")"
+                    disabled="@Disabled" tabindex="-1" class="@GetTogglePopupButtonClass()"
                     @onclick="@ClickPopupButton">
                 <span aria-hidden="true" class="notranslate rz-button-icon-left rzi rzi-timespan"></span><span class="rz-button-text"></span>
             </button>
         }
         @if (AllowClear && HasValue && (_isNullable || ConfirmedValue != DefaultNonNullValue) && !Disabled && !ReadOnly)
         {
-            <i class="notranslate rz-dropdown-clear-icon rzi rzi-times" @onclick="@Clear" @onclick:stopPropagation="true"></i>
+            <button type="button" class="notranslate rz-dropdown-clear-icon rzi rzi-times" aria-label="@ClearAriaLabel" @onclick="@Clear" @onclick:stopPropagation="true"></button>
         }
-        <Popup @ref="@_popup" Lazy="@(PopupRenderMode == PopupRenderMode.OnDemand)"
+        <Popup id="@($"{GetId()}-popup")" @ref="@popup" Lazy="@(PopupRenderMode == PopupRenderMode.OnDemand)"
                    Open="@OnPopupOpen" Close="@OnPopupClose"
+                   role="dialog" aria-label="@PopupAriaLabel"
                    class="rz-timespanpicker-popup-container">
             @RenderPanel()
         </Popup>
@@ -55,9 +57,9 @@
             <div class="rz-timespanpicker-panel"
                  @onkeydown="@PopupKeyDown" @onmousedown:stopPropagation>
                  <div class="rz-timespanpicker-panel-fieldcontainer">
-                    @if (_canBeEitherPositiveOrNegative && ReadOnly is false)
+                    @if (canBeEitherPositiveOrNegative && ReadOnly is false)
                     {
-                        <RadzenSelectBar TValue="bool" Value="@_isUnconfirmedValueNegative"
+                        <RadzenSelectBar TValue="bool" Value="@isUnconfirmedValueNegative"
                                          Orientation="Orientation.Vertical" Size="ButtonSize.Small"
                                          Disabled="@Disabled" class="rz-timespanpicker-signpicker"
                                          ValueChanged="@UpdateSign">
@@ -68,29 +70,27 @@
                         </RadzenSelectBar>
                     }
                     else {
-                        var signText = _isUnconfirmedValueNegative ? NegativeValueText : PositiveValueText;
+                        var signText = isUnconfirmedValueNegative ? NegativeValueText : PositiveValueText;
                         if (string.IsNullOrWhiteSpace(signText) is false)
                         {
                             <div class="rz-timespanpicker-sign">@signText</div>
                         }
                     }
 
-                    @RenderUnitField(TimeSpanUnit.Day, DaysUnitText, "d", UnconfirmedValue.Days, DaysStep, null, UpdateDays)
+                    @RenderUnitField(TimeSpanUnit.Day, DaysUnitText, "d", UnconfirmedValue.Days, DaysStep ?? "", null)
 
-                    @RenderUnitField(TimeSpanUnit.Hour, HoursUnitText, "h", UnconfirmedValue.Hours, HoursStep, "00", UpdateHours)
+                    @RenderUnitField(TimeSpanUnit.Hour, HoursUnitText, "h", UnconfirmedValue.Hours, HoursStep ?? "", "00")
 
-                    @RenderUnitField(TimeSpanUnit.Minute, MinutesUnitText, "min", UnconfirmedValue.Minutes, MinutesStep, "00", UpdateMinutes)
+                    @RenderUnitField(TimeSpanUnit.Minute, MinutesUnitText, "min", UnconfirmedValue.Minutes, MinutesStep ?? "", "00")
 
-                    @RenderUnitField(TimeSpanUnit.Second, SecondsUnitText, "s", UnconfirmedValue.Seconds, SecondsStep, "00", UpdateSeconds)
+                    @RenderUnitField(TimeSpanUnit.Second, SecondsUnitText, "s", UnconfirmedValue.Seconds, SecondsStep ?? "", "00")
 
-                    @RenderUnitField(TimeSpanUnit.Millisecond, MillisecondsUnitText, "ms", UnconfirmedValue.Milliseconds, MillisecondsStep, "000", UpdateMilliseconds)
+                    @RenderUnitField(TimeSpanUnit.Millisecond, MillisecondsUnitText, "ms", UnconfirmedValue.Milliseconds, MillisecondsStep ?? "", "000")
 
                     @{
-                    #if NET7_0_OR_GREATER
                         {
-                            @RenderUnitField(TimeSpanUnit.Microsecond, MicrosecondsUnitText, "us", UnconfirmedValue.Microseconds, MicrosecondsStep, "000", UpdateMicroseconds)
+                            @RenderUnitField(TimeSpanUnit.Microsecond, MicrosecondsUnitText, "us", UnconfirmedValue.Microseconds, MicrosecondsStep ?? "", "000")
                         }
-                    #endif
                     }
                 </div>
 
@@ -106,7 +106,7 @@
         };
     }
 
-    private RenderFragment RenderUnitField(TimeSpanUnit unit, string label, string unitSymbol, int value, string step, string valuePaddingFormat, Func<int, Task> change)
+    private RenderFragment RenderUnitField(TimeSpanUnit unit, string label, string unitSymbol, int value, string step, string? valuePaddingFormat)
     {
         return __builder =>
         {
@@ -120,8 +120,10 @@
                                    Value="@Math.Abs(value)"
                                    Min="0" Max="@TimeFieldsMaxValues[unit]" Step="@step"
                                    Disabled="@Disabled" ReadOnly="@ReadOnly" Format="@(PadTimeValues ? valuePaddingFormat : null)"
+                                   AutoCompleteType="@AutoCompleteType.Off"
                                    class="rz-timespanpicker-unitvaluepicker"
-                                   Change="@change" />
+                                   @oninput="@(args => SetLastFieldInput(unit, args.Value?.ToString()))"
+                                   Change="@(value => UpdateValueOfUnit(unit, value))" />
                 </div>
             }
             </text>

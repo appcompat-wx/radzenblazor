@@ -9,27 +9,63 @@ using System.Threading.Tasks;
 namespace Radzen.Blazor
 {
     /// <summary>
-    /// A component which edits HTML content. Provides built-in upload capabilities.
+    /// A rich text HTML editor component with WYSIWYG editing, formatting toolbar, image upload, and custom tool support.
+    /// RadzenHtmlEditor provides a full-featured editor for creating and editing formatted content with a Microsoft Word-like interface.
+    /// Allows users to create rich formatted content without knowing HTML.
+    /// Features WYSIWYG (what-you-see-is-what-you-get) visual editing interface, formatting tools (bold, italic, underline, font selection, colors, alignment, lists, links, images),
+    /// built-in image upload with configurable upload URL, custom toolbar buttons via RadzenHtmlEditorCustomTool, toggle between visual editing and HTML source code view,
+    /// paste filtering to remove unwanted HTML when pasting from other sources, and programmatic execution of formatting commands via ExecuteCommandAsync().
+    /// The Value property contains HTML markup. Use UploadUrl to configure where images are uploaded. Add custom tools for domain-specific functionality like inserting templates or special content.
     /// </summary>
     /// <example>
+    /// Basic HTML editor:
     /// <code>
-    /// &lt;RadzenHtmlEditor @bind-Value=@html /&gt;
+    /// &lt;RadzenHtmlEditor @bind-Value=@htmlContent Style="height: 400px;" /&gt;
     /// @code {
-    ///   string html = "@lt;strong&gt;Hello&lt;/strong&gt; world!";
+    ///     string htmlContent = "&lt;p&gt;Enter content here...&lt;/p&gt;";
+    /// }
+    /// </code>
+    /// Editor with image upload:
+    /// <code>
+    /// &lt;RadzenHtmlEditor @bind-Value=@content UploadUrl="api/upload/image" UploadHeaders=@uploadHeaders&gt;
+    ///     &lt;RadzenHtmlEditorBold /&gt;
+    ///     &lt;RadzenHtmlEditorItalic /&gt;
+    ///     &lt;RadzenHtmlEditorUnderline /&gt;
+    ///     &lt;RadzenHtmlEditorSeparator /&gt;
+    ///     &lt;RadzenHtmlEditorImage /&gt;
+    /// &lt;/RadzenHtmlEditor&gt;
+    /// </code>
+    /// Editor with custom tool:
+    /// <code>
+    /// &lt;RadzenHtmlEditor @bind-Value=@html Execute=@OnExecute&gt;
+    ///     &lt;RadzenHtmlEditorCustomTool CommandName="InsertDate" Icon="calendar_today" Title="Insert Current Date" /&gt;
+    /// &lt;/RadzenHtmlEditor&gt;
+    /// @code {
+    ///     async Task OnExecute(HtmlEditorExecuteEventArgs args)
+    ///     {
+    ///         if (args.CommandName == "InsertDate")
+    ///         {
+    ///             await args.Editor.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, DateTime.Today.ToLongDateString());
+    ///         }
+    ///     }
     /// }
     /// </code>
     /// </example>
     public partial class RadzenHtmlEditor : FormComponent<string>
     {
         /// <summary>
-        /// Specifies whether to show the toolbar. Set it to false to hide the toolbar. Default value is true.
+        /// Gets or sets whether to display the formatting toolbar above the editor.
+        /// When false, hides the toolbar but editing is still possible. Useful for read-only or simplified views.
         /// </summary>
+        /// <value><c>true</c> to show the toolbar; <c>false</c> to hide it. Default is <c>true</c>.</value>
         [Parameter]
         public bool ShowToolbar { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets the mode of the editor.
+        /// Gets or sets the editor mode determining whether users see the visual editor or HTML source code.
+        /// Design mode shows WYSIWYG editing, Source mode shows raw HTML for advanced users.
         /// </summary>
+        /// <value>The editor mode. Default is <see cref="HtmlEditorMode.Design"/>.</value>
         [Parameter]
         public HtmlEditorMode Mode { get; set; } = HtmlEditorMode.Design;
 
@@ -40,13 +76,22 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The child content.</value>
         [Parameter]
-        public RenderFragment ChildContent { get; set; }
+        public RenderFragment? ChildContent { get; set; }
 
         /// <summary>
         /// Specifies custom headers that will be submit during uploads.
         /// </summary>
         [Parameter]
-        public IDictionary<string, string> UploadHeaders { get; set; }
+        public IDictionary<string, string>? UploadHeaders { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the source editor should update the value on every keystroke.
+        /// When <c>true</c>, typing in the HTML source textarea invokes change immediately instead of on blur.
+        /// Set to <c>false</c> by default.
+        /// </summary>
+        /// <value><c>true</c> for immediate updates; otherwise, <c>false</c>.</value>
+        [Parameter]
+        public bool Immediate { get; set; }
 
         /// <summary>
         /// Gets or sets the input.
@@ -115,28 +160,31 @@ namespace Radzen.Blazor
         /// Specifies the URL to which RadzenHtmlEditor will submit files.
         /// </summary>
         [Parameter]
-        public string UploadUrl { get; set; }
+        public string? UploadUrl { get; set; }
 
         ElementReference ContentEditable { get; set; }
-        RadzenTextArea TextArea { get; set; }
+        RadzenTextArea? TextArea { get; set; }
 
         /// <summary>
         /// Focuses the editor.
         /// </summary>
         public override ValueTask FocusAsync()
         {
-
             if (mode == HtmlEditorMode.Design)
             {
                 return ContentEditable.FocusAsync();
             }
             else
             {
-                return TextArea.Element.FocusAsync();
+                return TextArea != null ? TextArea.Element.FocusAsync() : ValueTask.CompletedTask;
             }
         }
 
-        internal RadzenHtmlEditorCommandState State { get; set; } = new RadzenHtmlEditorCommandState();
+        /// <summary>
+        /// Represents the current state of the toolbar commands and other functionalities within the RadzenHtmlEditor component.
+        /// Updated dynamically based on user actions or programmatically invoked commands.
+        /// </summary>
+        public RadzenHtmlEditorCommandState State { get; set; } = new();
 
         async Task OnFocus()
         {
@@ -187,8 +235,9 @@ namespace Radzen.Blazor
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="value">The value.</param>
-        public async Task ExecuteCommandAsync(string name, string value = null)
+        public async Task ExecuteCommandAsync(string name, string? value = null)
         {
+            if (JSRuntime == null) return;
             State = await JSRuntime.InvokeAsync<RadzenHtmlEditorCommandState>("Radzen.execCommand", ContentEditable, name, value);
 
             await OnExecuteAsync(name);
@@ -217,6 +266,11 @@ namespace Radzen.Blazor
             }
         }
 
+        /// <summary>
+        /// Handles changes to the editor's source content.
+        /// </summary>
+        /// <param name="html">The updated HTML content.</param>
+        /// <returns>A task that represents the asynchronous operation.</returns>
         private async Task SourceChanged(string html)
         {
             if (Html != html)
@@ -260,7 +314,10 @@ namespace Radzen.Blazor
         /// </summary>
         public async Task SaveSelectionAsync()
         {
-            await JSRuntime.InvokeVoidAsync("Radzen.saveSelection", ContentEditable);
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("Radzen.saveSelection", ContentEditable);
+            }
         }
 
         /// <summary>
@@ -268,11 +325,15 @@ namespace Radzen.Blazor
         /// </summary>
         public async Task RestoreSelectionAsync()
         {
-            await JSRuntime.InvokeVoidAsync("Radzen.restoreSelection", ContentEditable);
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("Radzen.restoreSelection", ContentEditable);
+            }
         }
 
         async Task UpdateCommandState()
         {
+            if (JSRuntime == null) return;
             State = await JSRuntime.InvokeAsync<RadzenHtmlEditorCommandState>("Radzen.queryCommands", ContentEditable);
 
             StateHasChanged();
@@ -283,14 +344,22 @@ namespace Radzen.Blazor
             await OnChange();
         }
 
-        bool htmlChanged = false;
-        bool sourceChanged = false;
+        bool htmlChanged;
+        bool sourceChanged;
 
-        bool visibleChanged = false;
+        bool visibleChanged;
         bool firstRender = true;
 
-        internal ValueTask<T> GetSelectionAttributes<T>(string selector, string[] attributes)
+        /// <summary>
+        /// Retrieves the specified attributes of a selection within the content editable area.
+        /// </summary>
+        /// <typeparam name="T">The type of attributes to retrieve.</typeparam>
+        /// <param name="selector">The CSS selector used to target the element.</param>
+        /// <param name="attributes">An array of attribute names to retrieve.</param>
+        /// <returns>A task that represents the asynchronous operation, returning the attributes as an object of type T.</returns>
+        public ValueTask<T> GetSelectionAttributes<T>(string selector, string[] attributes)
         {
+            if (JSRuntime == null) return ValueTask.FromResult<T>(default!);
             return JSRuntime.InvokeAsync<T>("Radzen.selectionAttributes", selector, attributes, ContentEditable);
         }
 
@@ -303,7 +372,7 @@ namespace Radzen.Blazor
 
             if (firstRender || visibleChanged)
             {
-                if (Visible)
+                if (Visible && JSRuntime != null)
                 {
                     await JSRuntime.InvokeVoidAsync("Radzen.createEditor", ContentEditable, UploadUrl, Paste.HasDelegate, Reference, shortcuts.Keys);
                 }
@@ -333,7 +402,7 @@ namespace Radzen.Blazor
                 }
             }
 
-            if (requiresUpdate)
+            if (requiresUpdate && JSRuntime != null)
             {
                 await JSRuntime.InvokeVoidAsync("Radzen.innerHTML", ContentEditable, Html);
             }
@@ -354,7 +423,7 @@ namespace Radzen.Blazor
             return mode;
         }
 
-        string Html { get; set; }
+        string? Html { get; set; }
 
         /// <inheritdoc />
         protected override void OnInitialized()
@@ -394,7 +463,7 @@ namespace Radzen.Blazor
             return args.Html;
         }
 
-        bool valueChanged = false;
+        bool valueChanged;
 
         /// <inheritdoc />
         public override async Task SetParametersAsync(ParameterView parameters)
@@ -413,7 +482,7 @@ namespace Radzen.Blazor
 
             await base.SetParametersAsync(parameters);
 
-            if (visibleChanged && !firstRender && !Visible)
+            if (visibleChanged && !firstRender && !Visible && JSRuntime != null)
             {
                 await JSRuntime.InvokeVoidAsync("Radzen.destroyEditor", ContentEditable);
             }
@@ -430,10 +499,12 @@ namespace Radzen.Blazor
         {
             base.Dispose();
 
-            if (Visible && IsJSRuntimeAvailable)
+            if (Visible && IsJSRuntimeAvailable && JSRuntime != null)
             {
-                JSRuntime.InvokeVoidAsync("Radzen.destroyEditor", ContentEditable);
+                JSRuntime.InvokeVoid("Radzen.destroyEditor", ContentEditable);
             }
+
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -455,7 +526,7 @@ namespace Radzen.Blazor
         [JSInvokable("OnUploadComplete")]
         public async Task OnUploadComplete(string response)
         {
-            System.Text.Json.JsonDocument doc = null;
+            System.Text.Json.JsonDocument? doc = null;
 
             if (!string.IsNullOrEmpty(response))
             {

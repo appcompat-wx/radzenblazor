@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Options;
 using Radzen;
 using RadzenBlazorDemos;
 using RadzenBlazorDemos.Data;
@@ -39,6 +40,10 @@ builder.Services.AddScoped<NorthwindService>();
 builder.Services.AddScoped<NorthwindODataService>();
 builder.Services.AddSingleton<GitHubService>();
 
+builder.Services.AddAIChatService(options =>
+    builder.Configuration.GetSection("AIChatService").Bind(options));
+
+
 builder.Services.AddLocalization();
 
 /* --> Uncomment to enable localization
@@ -72,14 +77,14 @@ app.UseRequestLocalization(new RequestLocalizationOptions
     SupportedUICultures = supportedCultures
 });
 */
-
+app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAntiforgery();
 app.MapRazorPages();
 app.MapRazorComponents<RadzenBlazorDemos.Server.App>()
-    .AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(RadzenBlazorDemos.App).Assembly);
+    .AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(RadzenBlazorDemos.Routes).Assembly);
 app.MapControllers();
 
 app.Run();

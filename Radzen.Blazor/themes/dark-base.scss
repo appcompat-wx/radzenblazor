@@ -355,6 +355,8 @@ $grid-header-sorted-background-color: var(--rz-base-800) !default;
 $grid-filter-background-color: var(--rz-base-800) !default;
 $grid-filter-buttons-background-color: var(--rz-base-800) !default;
 $grid-detail-template-background-color: var(--rz-base-900) !default;
+$grid-simple-filter-icon-active-color: var(--rz-on-secondary-dark) !default;
+$grid-simple-filter-icon-active-background-color: var(--rz-secondary-dark) !default;
 
 // Pager
 $pager-back-button-background-color: var(--rz-base-700) !default;
@@ -427,6 +429,10 @@ $splitter-bar-hover-opacity: 0.8 !default;
 // FormField
 $form-field-filled-background-color: var(--rz-base-700) !default;
 $form-field-filled-hover-background-color: var(--rz-base-700) !default;
+
+// Skeleton
+$skeleton-background-color: var(--rz-base-600) !default;
+$skeleton-animation-color: var(--rz-base-700) !default;
 
 @import 'fonts';
 @import 'components';

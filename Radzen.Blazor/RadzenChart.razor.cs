@@ -3,18 +3,26 @@ using Radzen.Blazor.Rendering;
 using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Linq;
 
 namespace Radzen.Blazor
 {
     /// <summary>
-    /// Displays line, area, donut, pie, bar or column series.
+    /// A versatile chart component for visualizing data through various chart types including line, area, column, bar, pie, and donut series.
+    /// RadzenChart supports multiple series, customizable axes, legends, tooltips, data labels, markers, and interactive features.
+    /// Container for one or more chart series components. Each series (RadzenLineSeries, RadzenColumnSeries, RadzenAreaSeries, etc.) defines how data is visualized.
+    /// Supports Cartesian charts (Line, Area, Column, Bar, StackedColumn, StackedBar, StackedArea with X/Y axes), Pie charts (Pie and Donut series for showing proportions),
+    /// customization of color schemes/axis configuration/grid lines/legends/tooltips/data labels/markers, interactive click events on series and legend items with hover tooltips,
+    /// annotations including trend lines/mean/median/mode lines/value annotations, and responsive design that automatically adapts to container size.
+    /// Series are defined as child components within the RadzenChart. Configure axes using RadzenCategoryAxis and RadzenValueAxis, customize the legend with RadzenLegend, and add tooltips with RadzenChartTooltipOptions.
     /// </summary>
     /// <example>
+    /// Basic column chart:
     /// <code>
     ///   &lt;RadzenChart&gt;
-    ///       &lt;RadzenColumnSeries Data=@revenue CategoryProperty="Quarter" ValueProperty="Revenue" /&gt;
+    ///       &lt;RadzenColumnSeries Data=@revenue CategoryProperty="Quarter" Title="Revenue" ValueProperty="Revenue" /&gt;
     ///   &lt;/RadzenChart&gt;
     ///   @code {
     ///       class DataItem
@@ -31,30 +39,46 @@ namespace Radzen.Blazor
     ///       };
     ///   }
     /// </code>
+    /// Chart with multiple series and custom legend:
+    /// <code>
+    /// &lt;RadzenChart&gt;
+    ///     &lt;RadzenLineSeries Data=@sales2023 CategoryProperty="Month" ValueProperty="Amount" Title="2023 Sales" /&gt;
+    ///     &lt;RadzenLineSeries Data=@sales2024 CategoryProperty="Month" ValueProperty="Amount" Title="2024 Sales" /&gt;
+    ///     &lt;RadzenLegend Position="LegendPosition.Bottom" /&gt;
+    ///     &lt;RadzenCategoryAxis Formatter="@(value =&gt; value.ToString())" /&gt;
+    ///     &lt;RadzenValueAxis Formatter="@(value =&gt; value.ToString("C"))" /&gt;
+    /// &lt;/RadzenChart&gt;
+    /// </code>
     /// </example>
     public partial class RadzenChart : RadzenComponent
     {
         /// <summary>
-        /// Gets or sets the color scheme used to render the series.
+        /// Gets or sets the color scheme used to assign colors to chart series.
+        /// Determines the palette of colors applied sequentially to each series when series-specific colors are not set.
+        /// Available schemes include Pastel (default), Palette, Monochrome, and custom color schemes.
         /// </summary>
-        /// <value>The color scheme.</value>
+        /// <value>The color scheme. Default uses the Pastel scheme.</value>
         [Parameter]
         public ColorScheme ColorScheme { get; set; }
 
         /// <summary>
-        /// A callback that will be invoked when the user clicks on a series.
+        /// Gets or sets the callback invoked when a user clicks on a data point or segment in a chart series.
+        /// Provides information about the clicked series, data item, and value in the event arguments.
         /// </summary>
+        /// <value>The series click event callback.</value>
         [Parameter]
         public EventCallback<SeriesClickEventArgs> SeriesClick { get; set; }
 
         /// <summary>
-        /// A callback that will be invoked when the user clicks on a legend.
+        /// Gets or sets the callback invoked when a user clicks on a legend item.
+        /// Useful for implementing custom behaviors like toggling series visibility or filtering data.
         /// </summary>
+        /// <value>The legend click event callback.</value>
         [Parameter]
         public EventCallback<LegendClickEventArgs> LegendClick { get; set; }
-        
+
         [Inject]
-        TooltipService TooltipService { get; set; }
+        TooltipService? TooltipService { get; set; }
 
         /// <summary>
         /// Gets the runtime width of the chart.
@@ -91,7 +115,7 @@ namespace Radzen.Blazor
         /// </summary>
         /// <value>The child content.</value>
         [Parameter]
-        public RenderFragment ChildContent { get; set; }
+        public RenderFragment? ChildContent { get; set; }
 
         internal ScaleBase CategoryScale { get; set; } = new LinearScale();
         internal ScaleBase ValueScale { get; set; } = new LinearScale();
@@ -114,6 +138,11 @@ namespace Radzen.Blazor
         {
             Series.Remove(series);
         }
+        /// <summary>
+        /// Returns the Series used by the Chart.
+        /// </summary>
+        /// <returns></returns>
+        public IReadOnlyList<IChartSeries> GetSeries() => Series.ToList();
 
         /// <summary>
         /// Returns whether the chart should render axes.
@@ -152,7 +181,7 @@ namespace Radzen.Blazor
             var visibleSeries = Series.Where(series => series.Visible).ToList();
             var invisibleSeries = Series.Where(series => series.Visible == false).ToList();
 
-            if (!visibleSeries.Any() && invisibleSeries.Any())
+            if (visibleSeries.Count == 0 && invisibleSeries.Count > 0)
             {
                 visibleSeries.Add(invisibleSeries.Last());
             }
@@ -176,7 +205,7 @@ namespace Radzen.Blazor
                 CategoryScale.Padding = CategoryAxis.Padding;
             }
 
-            CategoryScale.Resize(xAxis.Min, xAxis.Max);
+            CategoryScale.Resize(xAxis.Min!, xAxis.Max!);
 
             if (xAxis.Step != null)
             {
@@ -184,7 +213,7 @@ namespace Radzen.Blazor
                 CategoryScale.Round = false;
             }
 
-            ValueScale.Resize(yAxis.Min, yAxis.Max);
+            ValueScale.Resize(yAxis.Min!, yAxis.Max!);
 
             if (yAxis.Step != null)
             {
@@ -231,8 +260,8 @@ namespace Radzen.Blazor
                 }
             }
 
-            CategoryScale.Output = new ScaleRange { Start = MarginLeft, End = Width.Value - MarginRight };
-            ValueScale.Output = new ScaleRange { Start = Height.Value - MarginBottom, End = MarginTop };
+            CategoryScale.Output = new ScaleRange { Start = MarginLeft, End = Width != null ? Width.Value - MarginRight : 0 };
+            ValueScale.Output = new ScaleRange { Start = Height != null ? Height.Value - MarginBottom : 0, End = MarginTop };
 
             ValueScale.Fit(ValueAxis.TickDistance);
             CategoryScale.Fit(CategoryAxis.TickDistance);
@@ -279,8 +308,8 @@ namespace Radzen.Blazor
             }
         }
 
-        RenderFragment tooltip;
-        object tooltipData;
+        RenderFragment? tooltip;
+        object? tooltipData;
         double mouseX;
         double mouseY;
 
@@ -318,8 +347,8 @@ namespace Radzen.Blazor
         [JSInvokable]
         public async Task Click(double x, double y)
         {
-            IChartSeries closestSeries = null;
-            object closestSeriesData = null;
+            IChartSeries? closestSeries = null;
+            object? closestSeriesData = null;
             double closestSeriesDistanceSquared = ClickTolerance * ClickTolerance;
 
             var queryX = x - MarginLeft;
@@ -345,7 +374,7 @@ namespace Radzen.Blazor
                 }
             }
 
-            if (closestSeriesData != null)
+            if (closestSeriesData != null && closestSeries != null)
             {
                 await closestSeries.InvokeClick(SeriesClick, closestSeriesData);
             }
@@ -356,8 +385,8 @@ namespace Radzen.Blazor
             if (Tooltip.Visible)
             {
                 var orderedSeries = Series.OrderBy(s => s.RenderingOrder).Reverse();
-                IChartSeries closestSeries = null;
-                object closestSeriesData = null;
+                IChartSeries? closestSeries = null;
+                object? closestSeriesData = null;
                 double closestSeriesDistanceSquared = TooltipTolerance * TooltipTolerance;
 
                 var queryX = mouseX - MarginLeft;
@@ -374,7 +403,7 @@ namespace Radzen.Blazor
                                 tooltipData = null;
                                 tooltip = overlay.RenderTooltip(queryX, queryY);
                                 var tooltipPosition = overlay.GetTooltipPosition(queryX, queryY);
-                                TooltipService.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
+                                TooltipService?.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
                                 {
                                     ColorScheme = ColorScheme
                                 });
@@ -400,14 +429,14 @@ namespace Radzen.Blazor
                     }
                 }
 
-                if (closestSeriesData != null)
+                if (closestSeriesData != null && closestSeries != null)
                 {
                     if (closestSeriesData != tooltipData)
                     {
                         tooltipData = closestSeriesData;
                         tooltip = closestSeries.RenderTooltip(closestSeriesData);
                         var tooltipPosition = closestSeries.GetTooltipPosition(closestSeriesData);
-                        TooltipService.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
+                        TooltipService?.OpenChartTooltip(Element, tooltipPosition.X + MarginLeft, tooltipPosition.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
                         {
                             ColorScheme = ColorScheme
                         });
@@ -422,12 +451,48 @@ namespace Radzen.Blazor
                 tooltipData = null;
                 tooltip = null;
 
-                TooltipService.Close();
+                TooltipService?.Close();
                 await Task.Yield();
             }
         }
 
-        private bool widthAndHeightAreSet = false;
+        /// <summary>
+        /// Displays a Tooltip on a chart without user interaction, given a series, and the data associated with it.
+        /// </summary>
+        /// <param name="series"></param>
+        /// <param name="data"></param>
+        /// <exception cref="ArgumentException"></exception>
+        public async Task DisplayTooltipFor(IChartSeries series, object data)
+        {
+            ArgumentNullException.ThrowIfNull(series);
+            if (!Series.Contains(series))
+            {
+                throw new ArgumentException($"Series:{series.GetTitle()} does not exist in {nameof(this.Series)}");
+            }
+
+            if (IsJSRuntimeAvailable)
+            {
+                var point = series.GetTooltipPosition(data);
+                await MouseMove(point.X + MarginLeft, point.Y + MarginTop);
+            }
+        }
+
+        internal async Task ShowTooltip(IChartSeries series, object data)
+        {
+            if (IsJSRuntimeAvailable)
+            {
+                tooltipData = data;
+                tooltip = series.RenderTooltip(data);
+                var point = series.GetTooltipPosition(data);
+                TooltipService?.OpenChartTooltip(Element, point.X + MarginLeft, point.Y + MarginTop, _ => tooltip, new ChartTooltipOptions
+                {
+                    ColorScheme = ColorScheme
+                });
+                await Task.Yield();
+            }
+        }
+
+        private bool widthAndHeightAreSet;
         private bool firstRender = true;
 
         /// <inheritdoc />
@@ -441,7 +506,7 @@ namespace Radzen.Blazor
             {
                 visibleChanged = false;
 
-                if (Visible)
+                if (Visible && JSRuntime != null)
                 {
                     var rect = await JSRuntime.InvokeAsync<Rect>("Radzen.createChart", Element, Reference);
 
@@ -455,7 +520,7 @@ namespace Radzen.Blazor
             }
         }
 
-        internal string ClipPath { get; set; }
+        internal string? ClipPath { get; set; }
 
         /// <inheritdoc />
         protected override void OnInitialized()
@@ -474,23 +539,20 @@ namespace Radzen.Blazor
             double width = 0;
             double height = 0;
 
-            if (CurrentStyle.ContainsKey("height"))
+            if (CurrentStyle.TryGetValue("height", out var pixelHeight))
             {
-                var pixelHeight = CurrentStyle["height"];
-
-                if (pixelHeight.EndsWith("px"))
+                if (pixelHeight.EndsWith("px", StringComparison.Ordinal))
                 {
-                    height = Convert.ToDouble(pixelHeight.TrimEnd("px".ToCharArray()));
+                    height = Convert.ToDouble(pixelHeight.TrimEnd("px".ToCharArray()), CultureInfo.InvariantCulture);
                 }
             }
 
-            if (CurrentStyle.ContainsKey("width"))
+            if (CurrentStyle.TryGetValue("width", out var pixelWidth))
             {
-                var pixelWidth = CurrentStyle["width"];
 
-                if (pixelWidth.EndsWith("px"))
+                if (pixelWidth.EndsWith("px", StringComparison.Ordinal))
                 {
-                    width = Convert.ToDouble(pixelWidth.TrimEnd("px".ToCharArray()));
+                    width = Convert.ToDouble(pixelWidth.TrimEnd("px".ToCharArray()), CultureInfo.InvariantCulture);
                 }
             }
 
@@ -506,7 +568,7 @@ namespace Radzen.Blazor
             }
         }
 
-        private bool visibleChanged = false;
+        private bool visibleChanged;
 
         /// <inheritdoc />
         public override async Task SetParametersAsync(ParameterView parameters)
@@ -524,7 +586,7 @@ namespace Radzen.Blazor
 
             if (visibleChanged && !firstRender)
             {
-                if (Visible == false)
+                if (Visible == false && JSRuntime != null)
                 {
                     await JSRuntime.InvokeVoidAsync("Radzen.destroyChart", Element);
                 }
@@ -559,10 +621,12 @@ namespace Radzen.Blazor
         {
             base.Dispose();
 
-            if (Visible && IsJSRuntimeAvailable)
+            if (Visible && IsJSRuntimeAvailable && JSRuntime != null)
             {
-                JSRuntime.InvokeVoidAsync("Radzen.destroyChart", Element);
+                JSRuntime.InvokeVoid("Radzen.destroyChart", Element);
             }
+
+            GC.SuppressFinalize(this);
         }
 
         /// <inheritdoc />

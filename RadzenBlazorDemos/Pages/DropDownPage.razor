@@ -1,11 +1,10 @@
-﻿@page "/dropdown"
-@page "/docs/guides/components/dropdown.html"
+@page "/dropdown"
 
 <RadzenText TextStyle="TextStyle.H2" TagName="TagName.H1" class="rz-pt-8">
-    DropDown
+    Blazor DropDown
 </RadzenText>
 <RadzenText TextStyle="TextStyle.Subtitle1" TagName="TagName.P" class="rz-pb-4">
-    Demonstration and configuration of the Radzen Blazor <strong>DropDown</strong> component.
+    Single selection, templates, and filtering support.
 </RadzenText>
 
 <RadzenText Anchor="dropdown#get-set-value" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
@@ -31,12 +30,18 @@
 <RadzenText Anchor="dropdown#text-and-value-properties" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
     Define Text and Value properties
 </RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Use the <code>TextProperty</code> and <code>ValueProperty</code> properties to specify which fields to display and use as values.
+</RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownTextValueProperties">
     <DropDownTextValueProperties />
 </RadzenExample>
 
 <RadzenText Anchor="dropdown#template" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
-    DropDown with template
+    DropDown with templates
+</RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Use the <code>Template</code>,<code>HeaderTemplate</code> and <code>FooterTemplate</code> properties to customize the dropdown list.
 </RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownTemplate">
     <DropDownTemplate />
@@ -45,12 +50,18 @@
 <RadzenText Anchor="dropdown#disable-item" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
     Disable specific item
 </RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Use the <code>IsDisabled</code> parameter of <code>RadzenDropDownItem</code> to disable specific items in the dropdown.
+</RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownDisabledItem">
     <DropDownDisabledItem />
 </RadzenExample>
 
 <RadzenText Anchor="dropdown#clear-selected-item" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
     Clear selected item
+</RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Use the <code>AllowClear</code> property to enable a clear button that allows users to deselect the current selection.
 </RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownClear">
     <DropDownClear/>
@@ -59,11 +70,17 @@
 <RadzenText Anchor="dropdown#editable-dropdown" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
     Editable DropDown
 </RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Use the <code>ValueTemplate</code> with an embedded input bound to the same value to let users edit the selected item in place. Set <code>ShowValueTemplateOnEmpty</code> to <code>true</code> to render the template (and its editor) even when no item is selected, so the user can type an initial value without first picking from the list. The pattern requires the DropDown <code>Value</code> to be the displayed text itself (e.g. a primitive type) and is not designed for use with <code>TextProperty</code>/<code>ValueProperty</code>.
+</RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownEdit">
     <DropDownEdit/>
 </RadzenExample>
 <RadzenText Anchor="dropdown#open-and-close-event" TextStyle="TextStyle.H5" TagName="TagName.H2" class="rz-pt-8">
     Open and close events
+</RadzenText>
+<RadzenText TextStyle="TextStyle.Body1" class="rz-mb-8">
+    Handle the <code>Open</code> and <code>Close</code> events to respond when the dropdown popup is opened or closed.
 </RadzenText>
 <RadzenExample ComponentName="DropDown" Example="DropDownOpenCloseEvent">
     <DropDownOpenCloseEvent />

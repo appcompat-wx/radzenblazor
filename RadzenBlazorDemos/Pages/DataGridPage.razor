@@ -1,8 +1,7 @@
-﻿@page "/datagrid"
-@page "/docs/guides/components/datagrid.html"
+@page "/datagrid"
 
 <RadzenText TextStyle="TextStyle.H2" TagName="TagName.H1" class="rz-pt-8">
-    DataGrid
+    Blazor DataGrid
 </RadzenText>
 <RadzenText TextStyle="TextStyle.Subtitle1" TagName="TagName.P" class="rz-pb-4">
     Display tabular data with ease. Perform paging, sorting and filtering through Entity Framework without extra code.
@@ -31,6 +30,8 @@
         new KeyboardShortcut { Key = "Shift + Enter or Space", Action = "Select/deselect multiple DataGrid items." },
         new KeyboardShortcut { Key = "LeftArrow when header row is focused", Action = "Focus previous DataGrid header cell." },
         new KeyboardShortcut { Key = "RightArrow when header row is focused", Action = "Focus next DataGrid header cell." },
+        new KeyboardShortcut { Key = "LeftArrow when data row is focused", Action = "Collapse item." },
+        new KeyboardShortcut { Key = "RightArrow when data row is focused", Action = "Expand items." },
         new KeyboardShortcut { Key = "Enter on focused header cell", Action = "Sort DataGrid by focused header cell column." },
         new KeyboardShortcut { Key = "Alt + DownArrow on focused header cell", Action = "Open DataGrid column filter popup." },
         new KeyboardShortcut { Key = "Tab in an opened DataGrid column filter popup", Action = "Navigate forward across available filter options." },

@@ -1,11 +1,15 @@
-﻿using Radzen;
+﻿using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace Radzen.Blazor.Tests
 {
-	public class DialogServiceTests
+	public class DialogServiceTests : ComponentBase
 	{
 		public class OpenDialogTests
 		{
@@ -87,8 +91,118 @@ namespace Radzen.Blazor.Tests
 				Assert.Equal("", resultingOptions.WrapperCssClass);
 				Assert.Equal("", resultingOptions.ContentCssClass);
 			}
+
+            [Fact(DisplayName = "Open with dynamic component type reflective calls are resolved without exception")]
+            public void Open_DynamicComponentType_Reflective_Calls_Resolve()
+            {
+                // Arrange
+                string resultingTitle = null;
+                Type resultingType = null;
+                var dialogService = new DialogService(null, null);
+                dialogService.OnOpen += (title, type, _, _) =>
+                {
+                    resultingTitle = title;
+                    resultingType = type;
+                };
+                
+                dialogService.Open("Dynamic Open", typeof(RadzenButton), []);
+                
+                // Assert
+                Assert.Equal("Dynamic Open", resultingTitle);
+                Assert.Equal(typeof(RadzenButton), resultingType);
+            }
+            
+            [Fact(DisplayName = "OpenAsync with dynamic component type reflective calls are resolved without exception")]
+            public async Task OpenAsync_DynamicComponentType_Reflective_Calls_Resolve()
+            {
+                // Arrange
+                string resultingTitle = null;
+                Type resultingType = null;
+                var dialogService = new DialogService(null, null);
+                dialogService.OnOpen += (title, type, _, _) =>
+                {
+                    resultingTitle = title;
+                    resultingType = type;
+                };
+
+                var openTask = dialogService.OpenAsync("Dynamic Open", typeof(RadzenButton), []);
+                dialogService.Close();
+                await openTask;
+
+                // Assert
+                Assert.Equal("Dynamic Open", resultingTitle);
+                Assert.Equal(typeof(RadzenButton), resultingType);
+            }
 		}
 
+        public class OpenSideDialogTests
+        {
+            [Fact(DisplayName = "SideDialogOptions resizable option is retained after OpenSideDialog call")]
+            public void SideDialogOptions_Resizable_AreRetained_AfterOpenSideDialogCall()
+            {
+                // Arrange
+                var options = new SideDialogOptions { Resizable = true };
+                SideDialogOptions resultingOptions = null;
+                var dialogService = new DialogService(null, null);
+                dialogService.OnSideOpen += (_, _, sideOptions) => resultingOptions = sideOptions;
+
+                // Act
+                dialogService.OpenSide<DialogServiceTests>("Test", [], options);
+
+                // Assert
+                Assert.NotNull(resultingOptions);
+                Assert.Same(options, resultingOptions);
+                Assert.True(resultingOptions.Resizable);
+            }
+
+            [Fact(DisplayName = "Side dialog shows resize bar when Resizable is true")]
+            public void SideDialog_Resizable_ShowsResizeBar()
+            {
+                using var ctx = new TestContext();
+                ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+                ctx.Services.AddScoped<DialogService>();
+
+                // Render the dialog host
+                var cut = ctx.RenderComponent<RadzenDialog>();
+
+                // Open a side dialog with Resizable=true
+                var dialogService = ctx.Services.GetRequiredService<DialogService>();
+                cut.InvokeAsync(() => dialogService.OpenSide("Test", typeof(RadzenButton),
+                    new Dictionary<string, object>(), new SideDialogOptions { Resizable = true }));
+
+                // Assert: the resize bar element is present
+                cut.WaitForAssertion(() =>
+                {
+                    var markup = cut.Markup;
+                    Assert.Contains("rz-dialog-resize-bar", markup);
+                    // Optionally ensure the inner handle exists too
+                    Assert.Contains("rz-resize", markup);
+                });
+            }
+
+            [Fact(DisplayName = "Side dialog hides resize bar when Resizable is false")]
+            public void SideDialog_NonResizable_HidesResizeBar()
+            {
+                using var ctx = new TestContext();
+                ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+                ctx.Services.AddScoped<DialogService>();
+
+                // Render the dialog host
+                var cut = ctx.RenderComponent<RadzenDialog>();
+
+                // Open a side dialog with Resizable=false
+                var dialogService = ctx.Services.GetRequiredService<DialogService>();
+                cut.InvokeAsync(() => dialogService.OpenSide("Test", typeof(RadzenButton),
+                    new Dictionary<string, object>(), new SideDialogOptions()));
+
+                // Assert: the resize bar element is not present
+                cut.WaitForAssertion(() =>
+                {
+                    var markup = cut.Markup;
+                    Assert.DoesNotContain("rz-dialog-resize-bar", markup);
+                });
+            }
+        }
 		public class ConfirmTests
 		{
 			[Fact(DisplayName = "ConfirmOptions is null and default values are set correctly")]
@@ -293,6 +407,109 @@ namespace Radzen.Blazor.Tests
 				Assert.Equal("background-color: red;", resultingOptions.Style);
 				Assert.Equal("rz-dialog-alert custom-class", resultingOptions.CssClass);
 				Assert.Equal("rz-dialog-wrapper wrapper-class", resultingOptions.WrapperCssClass);
+			}
+		}
+
+		public class CanCloseTests
+		{
+			[Fact(DisplayName = "TryCloseAsync closes when CanClose is null")]
+			public async Task TryCloseAsync_Closes_WhenCanCloseIsNull()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var openTask = dialogService.OpenAsync<DialogServiceTests>("Test");
+
+				// Act
+				var closed = await dialogService.TryCloseAsync();
+
+				// Assert
+				Assert.True(closed);
+				Assert.True(openTask.IsCompleted);
+			}
+
+			[Fact(DisplayName = "TryCloseAsync closes when CanClose returns true")]
+			public async Task TryCloseAsync_Closes_WhenCanCloseReturnsTrue()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var options = new DialogOptions { CanClose = () => Task.FromResult(true) };
+				var openTask = dialogService.OpenAsync<DialogServiceTests>("Test", options: options);
+
+				// Act
+				var closed = await dialogService.TryCloseAsync();
+
+				// Assert
+				Assert.True(closed);
+				Assert.True(openTask.IsCompleted);
+			}
+
+			[Fact(DisplayName = "TryCloseAsync blocks when CanClose returns false")]
+			public async Task TryCloseAsync_Blocks_WhenCanCloseReturnsFalse()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var options = new DialogOptions { CanClose = () => Task.FromResult(false) };
+				var openTask = dialogService.OpenAsync<DialogServiceTests>("Test", options: options);
+
+				// Act
+				var closed = await dialogService.TryCloseAsync();
+
+				// Assert
+				Assert.False(closed);
+				Assert.False(openTask.IsCompleted);
+			}
+
+			[Fact(DisplayName = "Programmatic Close bypasses CanClose")]
+			public async Task Close_Bypasses_CanClose()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var options = new DialogOptions { CanClose = () => Task.FromResult(false) };
+				var openTask = dialogService.OpenAsync<DialogServiceTests>("Test", options: options);
+
+				// Act
+				dialogService.Close();
+
+				// Assert
+				Assert.True(openTask.IsCompleted);
+			}
+
+			[Fact(DisplayName = "TryCloseSideAsync respects CanClose on SideDialogOptions")]
+			public async Task TryCloseSideAsync_Respects_CanClose()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var sideOptions = new SideDialogOptions { CanClose = () => Task.FromResult(false) };
+
+				SideDialogOptions resultingOptions = null;
+				dialogService.OnSideOpen += (_, _, opts) => resultingOptions = opts;
+
+				dialogService.OpenSide<DialogServiceTests>("Test", options: sideOptions);
+
+				// Act
+				var closed = await dialogService.TryCloseSideAsync();
+
+				// Assert
+				Assert.False(closed);
+			}
+
+			[Fact(DisplayName = "TryCloseSideAsync closes when CanClose returns true")]
+			public async Task TryCloseSideAsync_Closes_WhenCanCloseReturnsTrue()
+			{
+				// Arrange
+				var dialogService = new DialogService(null, null);
+				var sideOptions = new SideDialogOptions { CanClose = () => Task.FromResult(true) };
+				bool sideClosed = false;
+				dialogService.OnSideClose += (_) => sideClosed = true;
+
+				dialogService.OpenSide<DialogServiceTests>("Test", options: sideOptions);
+
+				// Act
+				var closed = await dialogService.TryCloseSideAsync();
+
+				// Assert
+				Assert.True(closed);
+				Assert.True(sideClosed);
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
@@ -24,40 +24,40 @@ namespace Radzen.Blazor
     public partial class RadzenTimeSpanPicker<TValue> : RadzenComponent, IRadzenFormComponent
     {
         #region Parameters: value
-        private TValue _value;
+        private TValue? valueField;
         /// <summary>
         /// Specifies the value of the component.
         /// </summary>
         [Parameter]
-        public TValue Value
+        public TValue? Value
         {
-            get => _value;
+            get => valueField;
             set
             {
-                if (EqualityComparer<object>.Default.Equals(value, _value))
+                if (EqualityComparer<object>.Default.Equals(valueField, value))
                 {
                     return;
                 }
 
-                _value = value;
+                valueField = value;
 
-                if (value is null)
+                if (valueField is null)
                 {
                     ConfirmedValue = null;
                     return;
                 }
 
-                ConfirmedValue = (TimeSpan?)(object)value;
+                ConfirmedValue = (TimeSpan?)(object)valueField;
             }
         }
         /// <summary>
-        /// Specifies the minimum time stamp allowed.
+        /// Specifies the minimum time span allowed.
         /// </summary>
         [Parameter]
         public TimeSpan Min { get; set; } = TimeSpan.MinValue;
 
         /// <summary>
-        /// Specifies the maximum time stamp allowed.
+        /// Specifies the maximum time span allowed.
         /// </summary>
         [Parameter]
         public TimeSpan Max { get; set; } = TimeSpan.MaxValue;
@@ -105,25 +105,25 @@ namespace Radzen.Blazor
         /// Specifies the popup toggle button CSS classes, separated with spaces.
         /// </summary>
         [Parameter]
-        public string PopupButtonClass { get; set; }
+        public string? PopupButtonClass { get; set; }
 
         /// <summary>
         /// Specifies additional custom attributes that will be rendered by the input.
         /// </summary>
         [Parameter]
-        public IReadOnlyDictionary<string, object> InputAttributes { get; set; }
+        public IReadOnlyDictionary<string, object>? InputAttributes { get; set; }
 
         /// <summary>
         /// Specifies the input CSS classes, separated with spaces.
         /// </summary>
         [Parameter]
-        public string InputClass { get; set; }
+        public string? InputClass { get; set; }
 
         /// <summary>
         /// Specifies the name of the input field.
         /// </summary>
         [Parameter]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Specifies the tab index.
@@ -139,14 +139,14 @@ namespace Radzen.Blazor
         /// time span format strings.
         /// </summary>
         [Parameter]
-        public string TimeSpanFormat { get; set; }
+        public string? TimeSpanFormat { get; set; }
 
         /// <summary>
         /// Specifies custom function to parse the input.
         /// If it's not defined or the function it returns <c>null</c>, a built-in parser us used instead.
         /// </summary>
         [Parameter]
-        public Func<string, TimeSpan?> ParseInput { get; set; }
+        public Func<string, TimeSpan?>? ParseInput { get; set; }
         #endregion
 
         #region Parameters: input field texts
@@ -154,13 +154,26 @@ namespace Radzen.Blazor
         /// Specifies the input placeholder.
         /// </summary>
         [Parameter]
-        public string Placeholder { get; set; }
+        public string? Placeholder { get; set; }
 
         /// <summary>
         /// Specifies the aria label for the toggle popup button.
         /// </summary>
         [Parameter]
         public string TogglePopupAriaLabel { get; set; } = "Toggle popup";
+
+        /// <summary>
+        /// Specifies the aria label for the popup.
+        /// </summary>
+        [Parameter]
+        public string PopupAriaLabel { get; set; } = "Time span picker";
+
+        /// <summary>
+        /// Gets or sets the clear button aria label text.
+        /// </summary>
+        /// <value>The clear button aria label text.</value>
+        [Parameter]
+        public string ClearAriaLabel { get; set; } = "Clear";
         #endregion
 
         #region Parameters: panel config
@@ -201,39 +214,37 @@ namespace Radzen.Blazor
         /// Specifies the step of the days field in the picker panel.
         /// </summary>
         [Parameter]
-        public string DaysStep { get; set; }
+        public string? DaysStep { get; set; }
 
         /// <summary>
         /// Specifies the step of the hours field in the picker panel.
         /// </summary>
         [Parameter]
-        public string HoursStep { get; set; }
+        public string? HoursStep { get; set; }
 
         /// <summary>
         /// Specifies the step of the minutes field in the picker panel.
         /// </summary>
         [Parameter]
-        public string MinutesStep { get; set; }
+        public string? MinutesStep { get; set; }
 
         /// <summary>
         /// Specifies the step of the seconds field in the picker panel.
         /// </summary>
         [Parameter]
-        public string SecondsStep { get; set; }
+        public string? SecondsStep { get; set; }
 
         /// <summary>
         /// Specifies the step of the milliseconds field in the picker panel.
         /// </summary>
         [Parameter]
-        public string MillisecondsStep { get; set; }
+        public string? MillisecondsStep { get; set; }
 
-        #if NET7_0_OR_GREATER
         /// <summary>
         /// Specifies the step of the microseconds field in the picker panel.
         /// </summary>
         [Parameter]
-        public string MicrosecondsStep { get; set; }
-#endif
+        public string? MicrosecondsStep { get; set; }
         #endregion
 
         #region Parameters: panel texts
@@ -297,13 +308,11 @@ namespace Radzen.Blazor
         [Parameter]
         public string MillisecondsUnitText { get; set; } = "Milliseconds";
 
-#if NET7_0_OR_GREATER
         /// <summary>
         /// Specifies the microseconds label text.
         /// </summary>
         [Parameter]
         public string MicrosecondsUnitText { get; set; } = "Microseconds";
-        #endif
         #endregion
 
         #region Parameters: other config
@@ -311,7 +320,7 @@ namespace Radzen.Blazor
         /// Specifies the value expression used while creating the <see cref="FieldIdentifier"/>.
         /// </summary>
         [Parameter]
-        public Expression<Func<TValue>> ValueExpression { get; set; }
+        public Expression<Func<TValue>>? ValueExpression { get; set; }
         #endregion
 
         #region Parameters: events
@@ -330,21 +339,21 @@ namespace Radzen.Blazor
 
 
         #region Form fields
-        private IRadzenForm _form;
+        private IRadzenForm? form;
         /// <summary>
         /// Specifies the form this component belongs to.
         /// </summary>
         [CascadingParameter]
-        public IRadzenForm Form
+        public IRadzenForm? Form
         {
-            get => _form;
+            get => form;
             set
             {
-                if (_form == value || value is null)
+                if (form == value || value is null)
                     return;
 
-                _form = value;
-                _form.AddComponent(this);
+                form = value;
+                form.AddComponent(this);
             }
         }
 
@@ -352,12 +361,12 @@ namespace Radzen.Blazor
         /// Specifies the edit context of this component.
         /// </summary>
         [CascadingParameter]
-        public EditContext EditContext { get; set; }
+        public EditContext? EditContext { get; set; }
 
         /// <summary>
         /// Specifies the <see cref="RadzenFormField"/> context of this component.
         /// </summary>
-        public IFormFieldContext FormFieldContext { get; set; } = null;
+        public IFormFieldContext? FormFieldContext { get; set; }
         #endregion
 
 
@@ -387,7 +396,8 @@ namespace Radzen.Blazor
         /// <summary>
         /// Gets the field identifier.
         /// </summary>
-        public FieldIdentifier FieldIdentifier { get; private set; }
+        [Parameter]
+        public FieldIdentifier FieldIdentifier { get; set; }
 
         /// <summary>
         /// Gets the input reference.
@@ -416,7 +426,14 @@ namespace Radzen.Blazor
                 }
                 _confirmedValue = newValue;
 
-                Value = (TValue) (object)_confirmedValue;
+                if (_isNullable)
+                {
+                    Value = _confirmedValue != null ? (TValue)(object)_confirmedValue : default(TValue)!;
+                }
+                else
+                {
+                    Value = (TValue)(object)(_confirmedValue ?? DefaultNonNullValue);
+                }
 
                 if (ShowConfirmationButton is false)
                 {
@@ -425,41 +442,44 @@ namespace Radzen.Blazor
             }
         }
 
-        private TimeSpan _unconfirmedValue;
+        private TimeSpan unconfirmedValue;
         private TimeSpan UnconfirmedValue
         {
-            get => _unconfirmedValue;
+            get => unconfirmedValue;
             set
             {
-                if (_unconfirmedValue == value)
+                _lastFieldInput.Value = null;
+
+                if (unconfirmedValue == value)
                 {
                     return;
                 }
 
                 var newValue = AdjustToBounds(value);
-                if (_unconfirmedValue == newValue)
+
+                if (unconfirmedValue == newValue)
                 {
                     return;
                 }
 
-                if (newValue != TimeSpan.Zero || _canBeEitherPositiveOrNegative is false)
+                if (newValue != TimeSpan.Zero || canBeEitherPositiveOrNegative is false)
                 {
-                    _isUnconfirmedValueNegative = newValue < TimeSpan.Zero;
+                    isUnconfirmedValueNegative = newValue < TimeSpan.Zero;
                 }
 
-                _unconfirmedValue = newValue;
+                unconfirmedValue = newValue;
             }
         }
 
-        private bool _isUnconfirmedValueNegative = false;
-        private int UnconformedValueSign => _isUnconfirmedValueNegative ? -1 : 1;
+        private bool isUnconfirmedValueNegative;
+        private int UnconformedValueSign => isUnconfirmedValueNegative ? -1 : 1;
 
         private TimeSpan DefaultNonNullValue => AdjustToBounds(TimeSpan.Zero);
 
         private void ResetUnconfirmedValue()
         {
             UnconfirmedValue = ConfirmedValue ?? DefaultNonNullValue;
-            _isUnconfirmedValueNegative = UnconfirmedValue < TimeSpan.Zero;
+            isUnconfirmedValueNegative = UnconfirmedValue < TimeSpan.Zero;
         }
         private TimeSpan AdjustToBounds(TimeSpan value) => value < Min ? Min : value > Max ? Max : value;
         #endregion
@@ -470,15 +490,16 @@ namespace Radzen.Blazor
         protected override void OnInitialized()
         {
             // initial synchronization: necessary when T is not nullable and Value is default(T)
-            ConfirmedValue = (TimeSpan?)(object)Value;
+            ConfirmedValue = (Value as TimeSpan?) ?? default;
+
             base.OnInitialized();
         }
 
-        private bool _firstRender;
+        private bool firstRender;
         /// <inheritdoc />
         protected override Task OnAfterRenderAsync(bool firstRender)
         {
-            _firstRender = firstRender;
+            this.firstRender = firstRender;
             return base.OnAfterRenderAsync(firstRender);
         }
 
@@ -487,8 +508,8 @@ namespace Radzen.Blazor
         {
             if (parameters.DidParameterChange(nameof(Min), Min) || parameters.DidParameterChange(nameof(Max), Max))
             {
-                var min = parameters.GetValueOrDefault<TimeSpan>(nameof(Min));
-                var max = parameters.GetValueOrDefault<TimeSpan>(nameof(Max));
+                var min = parameters.GetValueOrDefault(nameof(Min), Min);
+                var max = parameters.GetValueOrDefault(nameof(Max), Max);
 
                 SetPanelFieldsSetup(min, max);
             }
@@ -501,7 +522,7 @@ namespace Radzen.Blazor
 
             await base.SetParametersAsync(parameters);
 
-            if (shouldClose && !_firstRender && IsJSRuntimeAvailable)
+            if (shouldClose && !firstRender && IsJSRuntimeAvailable)
             {
                 await ClosePopup();
             }
@@ -525,6 +546,8 @@ namespace Radzen.Blazor
             }
 
             Form?.RemoveComponent(this);
+
+            GC.SuppressFinalize(this);
         }
 
         private async Task OnChange()
@@ -539,7 +562,7 @@ namespace Radzen.Blazor
             await Change.InvokeAsync(ConfirmedValue);
         }
 
-        private void ValidationStateChanged(object sender, ValidationStateChangedEventArgs e)
+        private void ValidationStateChanged(object? sender, ValidationStateChangedEventArgs e)
         {
             StateHasChanged();
         }
@@ -576,7 +599,7 @@ namespace Radzen.Blazor
         /// Gets the value of the component.
         /// </summary>
         /// <returns>System.Object.</returns>
-        public object GetValue() => Value;
+        public object? GetValue() => Value;
         #endregion
 
 
@@ -621,7 +644,7 @@ namespace Radzen.Blazor
 
                 await OnChange();
             }
-            else
+            else if (JSRuntime != null)
             {
                 await JSRuntime.InvokeAsync<string>("Radzen.setInputValue", input, FormattedValue);
             }
@@ -671,7 +694,8 @@ namespace Radzen.Blazor
         private Task ClickInputField()
             => ShowPopupButton ? Task.CompletedTask : ClickPopupButton();
 
-        private bool _preventKeyPress = false;
+        private bool preventKeyPress;
+        private bool stopKeydownPropagation;
         private async Task PressKey(KeyboardEventArgs args)
         {
             if (PreventPopupToggle)
@@ -683,24 +707,32 @@ namespace Radzen.Blazor
 
             if (key == "Enter")
             {
+                stopKeydownPropagation = true;
                 await TogglePopup();
             }
             else if (key == "Escape")
             {
+                stopKeydownPropagation = true;
                 await ClosePopup();
                 await FocusAsync();
+            }
+            else
+            {
+                stopKeydownPropagation = false;
             }
         }
         #endregion
 
         #region Internal: popup general actions
-        private Popup _popup;
+        private Popup? popup;
 
         private Task TogglePopup()
-            => Inline ? Task.CompletedTask : _popup?.ToggleAsync(Element) ?? Task.CompletedTask;
+            => Inline ? Task.CompletedTask : popup?.ToggleAsync(Element) ?? Task.CompletedTask;
 
         private Task ClosePopup()
-            => Inline ? Task.CompletedTask : _popup?.CloseAsync(Element) ?? Task.CompletedTask;
+            => Inline ? Task.CompletedTask : popup?.CloseAsync(Element) ?? Task.CompletedTask;
+
+        private bool isPopupOpen;
 
         private async Task PopupKeyDown(KeyboardEventArgs args)
         {
@@ -714,27 +746,49 @@ namespace Radzen.Blazor
 
         private void OnPopupOpen()
         {
+            isPopupOpen = true;
             ResetUnconfirmedValue();
-            _preventKeyPress = true;
+            preventKeyPress = true;
         }
         private void OnPopupClose()
         {
+            isPopupOpen = false;
             ResetUnconfirmedValue();
-            _preventKeyPress = false;
+            preventKeyPress = false;
         }
         #endregion
 
         #region Internal: panel fields setup
+        private static TimeSpan GetTimeSpanFromUnit(TimeSpanUnit unit, int value)
+            => unit switch
+            {
+                TimeSpanUnit.Day => TimeSpan.FromDays(value),
+                TimeSpanUnit.Hour => TimeSpan.FromHours(value),
+                TimeSpanUnit.Minute => TimeSpan.FromMinutes(value),
+                TimeSpanUnit.Second => TimeSpan.FromSeconds(value),
+                TimeSpanUnit.Millisecond => TimeSpan.FromMilliseconds(value),
+                TimeSpanUnit.Microsecond => TimeSpan.FromMicroseconds(value),
+                _ => TimeSpan.Zero,
+            };
+        private static int GetTimeSpanUnitValue(TimeSpanUnit unit, TimeSpan timeSpan)
+            => unit switch
+            {
+                TimeSpanUnit.Day => timeSpan.Days,
+                TimeSpanUnit.Hour => timeSpan.Hours,
+                TimeSpanUnit.Minute => timeSpan.Minutes,
+                TimeSpanUnit.Second => timeSpan.Seconds,
+                TimeSpanUnit.Millisecond => timeSpan.Milliseconds,
+                TimeSpanUnit.Microsecond => timeSpan.Microseconds,
+                _ => 0,
+            };
         private static readonly Dictionary<TimeSpanUnit, int> _timeUnitMaxAbsoluteValues = new()
             {
                 { TimeSpanUnit.Day, TimeSpan.MaxValue.Days },
                 { TimeSpanUnit.Hour, 23 },
                 { TimeSpanUnit.Minute, 59 },
                 { TimeSpanUnit.Second, 59 },
-                { TimeSpanUnit.Millisecond, 999 }
-                #if NET7_0_OR_GREATER
-                , { TimeSpanUnit.Microsecond, 999 }
-                #endif
+                { TimeSpanUnit.Millisecond, 999 },
+                { TimeSpanUnit.Microsecond, 999 }
             };
         private static readonly Dictionary<TimeSpanUnit, int> _timeUnitZeroValues = Enum
             .GetValues<TimeSpanUnit>()
@@ -743,15 +797,15 @@ namespace Radzen.Blazor
         private Dictionary<TimeSpanUnit, int> _negativeTimeFieldsMaxValues = new(_timeUnitMaxAbsoluteValues);
         private Dictionary<TimeSpanUnit, int> _positiveTimeFieldsMaxValues = new(_timeUnitMaxAbsoluteValues);
         private Dictionary<TimeSpanUnit, int> TimeFieldsMaxValues
-            => _isUnconfirmedValueNegative ? _negativeTimeFieldsMaxValues : _positiveTimeFieldsMaxValues;
+            => isUnconfirmedValueNegative ? _negativeTimeFieldsMaxValues : _positiveTimeFieldsMaxValues;
 
-        private bool _canBeEitherPositiveOrNegative = true;
+        private bool canBeEitherPositiveOrNegative = true;
 
         private void SetPanelFieldsSetup(TimeSpan min, TimeSpan max)
         {
             var canBeNegative = min < TimeSpan.Zero;
             var canBePositive = max > TimeSpan.Zero;
-            _canBeEitherPositiveOrNegative = canBeNegative && canBePositive;
+            canBeEitherPositiveOrNegative = canBeNegative && canBePositive;
 
             _negativeTimeFieldsMaxValues = canBeNegative ? GetTimeUnitMaxValues(min) : new (_timeUnitZeroValues);
             _positiveTimeFieldsMaxValues = canBePositive ? GetTimeUnitMaxValues(max) : new(_timeUnitZeroValues);
@@ -796,14 +850,12 @@ namespace Radzen.Blazor
             }
             timeUnitMaxValues[TimeSpanUnit.Millisecond] = 0;
 
-#if NET7_0_OR_GREATER
             if (boundary.Microseconds != 0)
             {
                 timeUnitMaxValues[TimeSpanUnit.Microsecond] = Math.Abs(boundary.Microseconds);
                 return timeUnitMaxValues;
             }
             timeUnitMaxValues[TimeSpanUnit.Microsecond] = 0;
-#endif
 
             return timeUnitMaxValues;
         }
@@ -820,63 +872,38 @@ namespace Radzen.Blazor
 
             if (UnconfirmedValue == TimeSpan.Zero)
             {
-                _isUnconfirmedValueNegative = isNegative;
+                isUnconfirmedValueNegative = isNegative;
                 return Task.CompletedTask;
             }
 
             return UpdateValueFromPanelFields(UnconfirmedValue.Negate());
         }
 
-        private Task UpdateDays(int days)
+        private (TimeSpanUnit Unit, string? Value) _lastFieldInput = (TimeSpanUnit.Day, null);
+
+        private void SetLastFieldInput(TimeSpanUnit unit, string? value)
+            => _lastFieldInput = (unit, value);
+
+        private Task UpdateValueOfUnit(TimeSpanUnit unit, string? stringValue)
+        {
+            if (string.IsNullOrEmpty(stringValue)
+                || int.TryParse(stringValue, NumberStyles.Any, Culture, out int value) is false)
+            {
+                return Task.CompletedTask;
+            }
+
+            value = Math.Min(Math.Max(value, 0), TimeFieldsMaxValues[unit]);
+            return UpdateValueOfUnit(unit, value);
+        }
+
+        private Task UpdateValueOfUnit(TimeSpanUnit unit, int value)
         {
             var newValue = UnconfirmedValue
-                - TimeSpan.FromDays(UnconfirmedValue.Days)
-                + TimeSpan.FromDays(days * UnconformedValueSign);
+                - GetTimeSpanFromUnit(unit, GetTimeSpanUnitValue(unit, UnconfirmedValue))
+                + GetTimeSpanFromUnit(unit, value * UnconformedValueSign);
 
             return UpdateValueFromPanelFields(newValue);
         }
-        private Task UpdateHours(int hours)
-        {
-            var newValue = UnconfirmedValue
-                - TimeSpan.FromHours(UnconfirmedValue.Hours)
-                + TimeSpan.FromHours(hours * UnconformedValueSign);
-
-            return UpdateValueFromPanelFields(newValue);
-        }
-        private Task UpdateMinutes(int minutes)
-        {
-            var newValue = UnconfirmedValue
-                - TimeSpan.FromMinutes(UnconfirmedValue.Minutes)
-                + TimeSpan.FromMinutes(minutes * UnconformedValueSign);
-
-            return UpdateValueFromPanelFields(newValue);
-        }
-        private Task UpdateSeconds(int seconds)
-        {
-            var newValue = UnconfirmedValue
-                - TimeSpan.FromSeconds(UnconfirmedValue.Seconds)
-                + TimeSpan.FromSeconds(seconds * UnconformedValueSign);
-
-            return UpdateValueFromPanelFields(newValue);
-        }
-        private Task UpdateMilliseconds(int milliseconds)
-        {
-            var newValue = UnconfirmedValue
-                - TimeSpan.FromMilliseconds(UnconfirmedValue.Milliseconds)
-                + TimeSpan.FromMilliseconds(milliseconds * UnconformedValueSign);
-
-            return UpdateValueFromPanelFields(newValue);
-        }
-#if NET7_0_OR_GREATER
-        private Task UpdateMicroseconds(int microseconds)
-        {
-            var newValue = UnconfirmedValue
-                - TimeSpan.FromMicroseconds(UnconfirmedValue.Microseconds)
-                + TimeSpan.FromMicroseconds(microseconds);
-
-            return UpdateValueFromPanelFields(newValue * UnconformedValueSign);
-        }
-#endif
 
         private Task UpdateValueFromPanelFields(TimeSpan newValue)
         {
@@ -898,6 +925,8 @@ namespace Radzen.Blazor
 
         private async Task ConfirmValue()
         {
+            await UpdateValueOfUnit(_lastFieldInput.Unit, _lastFieldInput.Value);
+
             if (ConfirmedValue != UnconfirmedValue)
             {
                 ConfirmedValue = UnconfirmedValue;

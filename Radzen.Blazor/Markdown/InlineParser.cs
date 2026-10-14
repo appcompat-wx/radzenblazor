@@ -12,7 +12,7 @@ class InlineParser
         public char Char { get; set; }
         public int Length { get; set; }
         public int Position { get; set; }
-        public Text Node { get; set; }
+        public Text? Node { get; set; }
         public bool CanOpen { get; set; }
         public bool CanClose { get; set; }
         public bool Active { get; set; } = true;
@@ -71,7 +71,7 @@ class InlineParser
 
             if (trim)
             {
-                value = value.Trim();
+                value = value.TrimEnd();
             }
 
             inlines.Add(new Text(value));
@@ -296,7 +296,7 @@ class InlineParser
 
         var url = destination.ToString();
 
-        if (url.Contains(Space))
+        if (url.Contains(Space, StringComparison.Ordinal))
         {
             return false;
         }
@@ -374,6 +374,11 @@ class InlineParser
             }
 
             if (TryParseLinkOrImage(text, index, out index))
+            {
+                continue;
+            }
+
+            if (TryParseEmoji(text, index, out index))
             {
                 continue;
             }
@@ -508,6 +513,48 @@ class InlineParser
         }
 
         return false;
+    }
+
+    private bool TryParseEmoji(string text, int index, out int newIndex)
+    {
+        newIndex = index;
+
+        if (text[index] is not Colon)
+        {
+            return false;
+        }
+
+        var position = index + 1;
+
+        if (position >= text.Length || !(char.IsLetterOrDigit(text[position]) || text[position] is '+' or '-'))
+        {
+            return false;
+        }
+
+        while (position < text.Length && (char.IsLetterOrDigit(text[position]) || text[position] is '_' or '+' or '-'))
+        {
+            position++;
+        }
+
+        if (position >= text.Length || text[position] is not Colon)
+        {
+            return false;
+        }
+
+        var shortcode = text[(index + 1)..position];
+
+        if (!EmojiMapping.Emojis.TryGetValue(shortcode, out var emoji))
+        {
+            return false;
+        }
+
+        AddTextNode();
+
+        inlines.Add(new Text(emoji));
+
+        newIndex = position + 1;
+
+        return true;
     }
 
     internal static bool TryParseDestinationAndTitle(string text, int position, out string destination, out string title, out int newPosition)
@@ -778,7 +825,7 @@ class InlineParser
 
     private void ReplaceOpener(int openerIndex, InlineContainer parent)
     {
-        var startIndex = inlines.FindIndex(delimiters[openerIndex].Node.Equals);
+        var startIndex = delimiters[openerIndex].Node != null ? inlines.FindIndex(node => node.Equals(delimiters[openerIndex].Node)) : -1;
 
         ParseEmphasisAndStrong(openerIndex);
 
@@ -815,7 +862,7 @@ class InlineParser
 
         AddTextNode();
 
-        var startIndex = inlines.FindIndex(delimiters[openerIndex].Node.Equals);
+        var startIndex = delimiters[openerIndex].Node != null ? inlines.FindIndex(node => node.Equals(delimiters[openerIndex].Node)) : -1;
 
         var endIndex = inlines.Count - startIndex;
 
@@ -878,8 +925,8 @@ class InlineParser
             {
                 var closer = delimiters[closerIndex];
                 var opener = delimiters[openerIndex];
-                var startIndex = inlines.FindIndex(opener.Node.Equals);
-                var endIndex = inlines.FindIndex(closer.Node.Equals);
+                var startIndex = opener.Node != null ? inlines.FindIndex(opener.Node.Equals) : -1;
+                var endIndex = closer.Node != null ? inlines.FindIndex(closer.Node.Equals) : -1;
 
                 if (startIndex >= 0 && endIndex >= 0)
                 {
@@ -896,27 +943,39 @@ class InlineParser
 
                     opener.Length -= charsToConsume;
 
-                    if (opener.Length > 0)
+                    if (opener.Length > 0 && opener.Node != null)
                     {
                         opener.Node.Value = opener.Node.Value[..^charsToConsume];
-                        startIndex += charsToConsume;
+                        startIndex += 1;
                     }
 
                     closer.Length -= charsToConsume;
 
-                    if (closer.Length > 0)
+                    if (closer.Length > 0 && closer.Node != null)
                     {
                         closer.Node.Value = closer.Node.Value[..^charsToConsume];
-                        endIndex -= charsToConsume;
+                        endIndex -= 1;
                     }
 
                     inlines.RemoveRange(startIndex, endIndex - startIndex + 1);
 
                     inlines.Insert(startIndex, parent);
-                }
 
-                delimiters.RemoveAt(closerIndex);
-                delimiters.RemoveAt(openerIndex);
+                    if (closer.Length == 0)
+                    {
+                        delimiters.RemoveAt(closerIndex);
+                    }
+
+                    if (opener.Length == 0)
+                    {
+                        delimiters.RemoveAt(openerIndex);
+                    }
+                }
+                else
+                {
+                    delimiters.RemoveAt(closerIndex);
+                    delimiters.RemoveAt(openerIndex);
+                }
             }
             else
             {

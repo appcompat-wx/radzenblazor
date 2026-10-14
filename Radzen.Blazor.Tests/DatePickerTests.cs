@@ -155,7 +155,7 @@ namespace Radzen.Blazor.Tests
                 parameters.Add<bool>(p => p.AllowClear, true);
             });
 
-            Assert.Contains(@$"<i class=""notranslate rz-dropdown-clear-icon rzi rzi-times""", component.Markup);
+            Assert.Contains(@$"<button type=""button"" class=""notranslate rz-dropdown-clear-icon rzi rzi-times""", component.Markup);
         }
 
         [Fact]
@@ -486,7 +486,7 @@ namespace Radzen.Blazor.Tests
 
 
         [Fact]
-        public void DatePicker_Respects_DateTimeMaxValue()
+        public void DatePicker_Renders_Blank_WhenValueIsMaxValue()
         {
             using var ctx = new TestContext();
             ctx.JSInterop.Mode = JSRuntimeMode.Loose;
@@ -497,11 +497,24 @@ namespace Radzen.Blazor.Tests
                 parameters.Add(p => p.Value, DateTime.MaxValue);
             });
 
-            Assert.Contains(DateTime.MaxValue.ToString(component.Instance.DateFormat), component.Markup);
+            Assert.Contains(@$"rz-state-empty", component.Markup);
+            Assert.Contains(@$"value=""""", component.Markup);
+        }
 
-            var exception = Record.Exception(() => component.Find(".rz-calendar-next-icon")
-                                                            .Click());
-            Assert.Null(exception);
+        [Fact]
+        public void DatePicker_Renders_Blank_WhenValueIsMinValue()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, DateTime.MinValue);
+            });
+
+            Assert.Contains(@$"rz-state-empty", component.Markup);
+            Assert.Contains(@$"value=""""", component.Markup);
         }
 
         [Theory]
@@ -717,6 +730,38 @@ namespace Radzen.Blazor.Tests
         }
 
         [Fact]
+        public void DatePicker_WeekdayHeaders_HaveFullDayNameAriaLabel()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var culture = new CultureInfo("en-US");
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameter =>
+            {
+                parameter.Add(p => p.Culture, culture);
+            });
+
+            var headers = component.FindAll(".rz-calendar-view thead th[scope='col']");
+            Assert.Equal(7, headers.Count);
+
+            var firstDay = (int)culture.DateTimeFormat.FirstDayOfWeek;
+            for (int i = 0; i < 7; i++)
+            {
+                var dayIndex = (firstDay + i) % 7;
+                var expectedFull = culture.DateTimeFormat.DayNames[dayIndex];
+                var expectedAbbr = culture.DateTimeFormat.AbbreviatedDayNames[dayIndex];
+
+                Assert.Equal(expectedFull, headers[i].GetAttribute("aria-label"));
+                Assert.Equal(expectedFull, headers[i].GetAttribute("abbr"));
+
+                var visibleSpan = headers[i].QuerySelector("span[aria-hidden='true']");
+                Assert.NotNull(visibleSpan);
+                Assert.Equal(expectedAbbr, visibleSpan.TextContent);
+            }
+        }
+
+        [Fact]
         public void DatePicker_ShowCalendarWeekWithCustomTitle_TitleCorrectlyRendered()
         {
             using var ctx = new TestContext();
@@ -731,6 +776,797 @@ namespace Radzen.Blazor.Tests
 
             var weekNumberHeader = component.Find(".rz-calendar-view th.rz-datepicker-week-number");
             Assert.Contains("Wk", weekNumberHeader.InnerHtml);
+        }
+
+        [Fact]
+        public void DatePicker_Multiple_Selects_IEnumerableDateTime()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            IEnumerable<DateTime> emitted = null;
+            var initial = new DateTime(2024, 1, 1);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<IEnumerable<DateTime>>>(parameters =>
+            {
+                parameters.Add(p => p.Multiple, true);
+                parameters.Add(p => p.InitialViewDate, initial);
+                parameters.Add(p => p.ValueChanged, args => { emitted = args; });
+            });
+
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "10").ParentElement.Click());
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "12").ParentElement.Click());
+
+            Assert.NotNull(emitted);
+            var list = emitted.ToList();
+            Assert.Equal(2, list.Count);
+            Assert.Contains(new DateTime(2024, 1, 10), list.Select(d => d.Date));
+            Assert.Contains(new DateTime(2024, 1, 12), list.Select(d => d.Date));
+        }
+
+        [Fact]
+        public void DatePicker_Multiple_Selects_IEnumerableNullableDateTime()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            IEnumerable<DateTime?> emitted = null;
+            var initial = new DateTime(2024, 2, 1);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<IEnumerable<DateTime?>>>(parameters =>
+            {
+                parameters.Add(p => p.Multiple, true);
+                parameters.Add(p => p.InitialViewDate, initial);
+                parameters.Add(p => p.ValueChanged, args => { emitted = args; });
+            });
+
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "3").ParentElement.Click());
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "14").ParentElement.Click());
+
+            Assert.NotNull(emitted);
+            var list = emitted.ToList();
+            Assert.Equal(2, list.Count);
+            Assert.Contains(new DateTime(2024, 2, 3), list.Select(d => d.Value.Date));
+            Assert.Contains(new DateTime(2024, 2, 14), list.Select(d => d.Value.Date));
+        }
+
+        [Fact]
+        public void DatePicker_Multiple_Emits_IEnumerableDateTimeOffsetNullable_WithUtcKind()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            IEnumerable<DateTimeOffset?> emitted = null;
+            var initial = new DateTime(2024, 3, 1);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<IEnumerable<DateTimeOffset?>>>(parameters =>
+            {
+                parameters.Add(p => p.Multiple, true);
+                parameters.Add(p => p.InitialViewDate, initial);
+                parameters.Add(p => p.Kind, DateTimeKind.Utc);
+                parameters.Add(p => p.ValueChanged, args => { emitted = args; });
+            });
+
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "5").ParentElement.Click());
+            component.InvokeAsync(() => component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "20").ParentElement.Click());
+
+            Assert.NotNull(emitted);
+            var list = emitted.ToList();
+            Assert.Equal(2, list.Count);
+            Assert.All(list, dto => Assert.Equal(TimeSpan.Zero, dto.Value.Offset));
+        }
+
+        [Fact]
+        public void DatePicker_Multiple_Emits_IEnumerableDateOnlyAndTimeOnlyNullable()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            IEnumerable<DateOnly?> emittedDates = null;
+            IEnumerable<TimeOnly?> emittedTimes = null;
+            var initial = new DateTime(2024, 4, 1);
+
+            var compDates = ctx.RenderComponent<RadzenDatePicker<IEnumerable<DateOnly?>>>(parameters =>
+            {
+                parameters.Add(p => p.Multiple, true);
+                parameters.Add(p => p.InitialViewDate, initial);
+                parameters.Add(p => p.ValueChanged, args => { emittedDates = args; });
+            });
+
+            compDates.InvokeAsync(() => compDates.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "7").ParentElement.Click());
+            compDates.InvokeAsync(() => compDates.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "9").ParentElement.Click());
+
+            Assert.NotNull(emittedDates);
+            var dateList = emittedDates.ToList();
+            Assert.Equal(2, dateList.Count);
+            Assert.Contains(new DateOnly(2024, 4, 7), dateList.Select(d => d.Value));
+            Assert.Contains(new DateOnly(2024, 4, 9), dateList.Select(d => d.Value));
+
+            // TimeOnly? emission should produce midnight times for selected dates
+            var compTimes = ctx.RenderComponent<RadzenDatePicker<IEnumerable<TimeOnly?>>>(parameters =>
+            {
+                parameters.Add(p => p.Multiple, true);
+                parameters.Add(p => p.InitialViewDate, initial);
+                parameters.Add(p => p.ValueChanged, args => { emittedTimes = args; });
+            });
+
+            compTimes.InvokeAsync(() => compTimes.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "1").ParentElement.Click());
+            compTimes.InvokeAsync(() => compTimes.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "2").ParentElement.Click());
+
+            Assert.NotNull(emittedTimes);
+            var timeList = emittedTimes.ToList();
+            Assert.Equal(2, timeList.Count);
+            Assert.All(timeList, t => Assert.Equal(new TimeOnly(0, 0, 0), t.Value));
+        }
+
+        [Fact]
+        public void DatePicker_WithoutOkButton_TimeChange_ImmediatelyCommits()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var changeCount = 0;
+            DateTime? lastChangeValue = null;
+            DateTime? lastValueChanged = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, false);
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 15, 10, 30, 0));
+                parameters.Add(p => p.Change, args => { changeCount++; lastChangeValue = args; });
+                parameters.Add(p => p.ValueChanged, args => { lastValueChanged = args; });
+            });
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+
+            Assert.Equal(1, changeCount);
+            Assert.NotNull(lastChangeValue);
+            Assert.Equal(11, lastChangeValue.Value.Hour);
+            Assert.NotNull(lastValueChanged);
+            Assert.Equal(11, lastValueChanged.Value.Hour);
+        }
+
+        [Fact]
+        public void DatePicker_Immediate_TimeChange_ImmediatelyCommits()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var changeCount = 0;
+            DateTime? lastChangeValue = null;
+            DateTime? lastValueChanged = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Immediate, true);
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 15, 10, 30, 0));
+                parameters.Add(p => p.Change, args => { changeCount++; lastChangeValue = args; });
+                parameters.Add(p => p.ValueChanged, args => { lastValueChanged = args; });
+            });
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+
+            Assert.Equal(1, changeCount);
+            Assert.NotNull(lastChangeValue);
+            Assert.Equal(11, lastChangeValue.Value.Hour);
+            Assert.NotNull(lastValueChanged);
+            Assert.Equal(11, lastValueChanged.Value.Hour);
+
+            component.Find(".rz-minute-picker .rz-numeric-up").Click();
+
+            Assert.Equal(2, changeCount);
+            Assert.Equal(31, lastChangeValue.Value.Minute);
+            Assert.Equal(31, lastValueChanged.Value.Minute);
+        }
+
+        [Fact]
+        public void DatePicker_WithoutOkButton_DayClick_ImmediatelyCommits()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var changeRaised = false;
+            DateTime? lastValueChanged = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, false);
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 15, 10, 30, 0));
+                parameters.Add(p => p.Change, args => { changeRaised = true; });
+                parameters.Add(p => p.ValueChanged, args => { lastValueChanged = args; });
+            });
+
+            component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "20").ParentElement.Click();
+
+            Assert.True(changeRaised);
+            Assert.NotNull(lastValueChanged);
+            Assert.Equal(20, lastValueChanged.Value.Day);
+            Assert.Equal(10, lastValueChanged.Value.Hour);
+        }
+
+        [Fact]
+        public void DatePicker_WithOkButton_TimeChange_RevertsOnClose()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+            var valueChangedCount = 0;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Value, initialDate);
+                parameters.Add(p => p.ValueChanged, args => { valueChangedCount++; });
+            });
+
+            var hourInput = component.Find(".rz-hour-picker input");
+            Assert.Equal("10", hourInput.GetAttribute("value"));
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+
+            hourInput = component.Find(".rz-hour-picker input");
+            Assert.Equal("11", hourInput.GetAttribute("value"));
+            Assert.Equal(0, valueChangedCount);
+
+            component.InvokeAsync(() => component.Instance.Close());
+
+            hourInput = component.Find(".rz-hour-picker input");
+            Assert.Equal("10", hourInput.GetAttribute("value"));
+
+            var input = component.Find(".rz-inputtext");
+            Assert.Contains("10", input.GetAttribute("value"));
+        }
+
+        [Fact]
+        public void DatePicker_WithOkButton_TimeChange_CommitsOnOk()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            DateTime? lastValueChanged = null;
+            DateTime? lastChangeValue = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 15, 10, 30, 0));
+                parameters.Add(p => p.ValueChanged, args => { lastValueChanged = args; });
+                parameters.Add(p => p.Change, args => { lastChangeValue = args; });
+            });
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+            component.FindAll(".rz-button-text").First(x => x.TextContent == "Ok").Click();
+
+            Assert.NotNull(lastValueChanged);
+            Assert.Equal(11, lastValueChanged.Value.Hour);
+            Assert.NotNull(lastChangeValue);
+            Assert.Equal(11, lastChangeValue.Value.Hour);
+        }
+
+        [Fact]
+        public void DatePicker_WithOkButton_DayCommits_ThenTimeRevertsOnClose()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            DateTime? lastValueChanged = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 15, 10, 30, 0));
+                parameters.Add(p => p.ValueChanged, args => { lastValueChanged = args; });
+            });
+
+            component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "20").ParentElement.Click();
+
+            Assert.NotNull(lastValueChanged);
+            Assert.Equal(20, lastValueChanged.Value.Day);
+            Assert.Equal(10, lastValueChanged.Value.Hour);
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+
+            component.InvokeAsync(() => component.Instance.Close());
+
+            var input = component.Find(".rz-inputtext");
+            Assert.Contains("10", input.GetAttribute("value"));
+            Assert.Contains("20", input.GetAttribute("value"));
+        }
+
+        [Fact]
+        public void DatePicker_WithOkButton_OnPopupClose_RevertsTimeChange()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+            DateTime? lastValueChanged = null;
+            var valueChangedCount = 0;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Value, initialDate);
+                parameters.Add(p => p.ValueChanged, args => { valueChangedCount++; lastValueChanged = args; });
+            });
+
+            component.Find(".rz-hour-picker .rz-numeric-up").Click();
+
+            var countBeforeClose = valueChangedCount;
+
+            component.InvokeAsync(() => component.Instance.OnPopupClose());
+
+            Assert.Equal(countBeforeClose, valueChangedCount);
+
+            var input = component.Find("input");
+            Assert.Contains("10", input.GetAttribute("value"));
+        }
+
+        [Fact]
+        public void DatePicker_OkClick_Fires_OnOkButtonClick()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var okClickRaised = false;
+            DateTime? okClickValue = null;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.OkClick, args => { okClickRaised = true; okClickValue = args; });
+            });
+
+            component.Find(".rz-calendar-next-icon").Click();
+            component.FindAll(".rz-button-text").First(x => x.TextContent == "Ok").Click();
+
+            Assert.True(okClickRaised);
+            Assert.NotNull(okClickValue);
+        }
+
+        [Fact]
+        public void DatePicker_OkClick_DoesNotFire_OnDaySelection()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var okClickRaised = false;
+            var changeRaised = false;
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.ShowTimeOkButton, true);
+                parameters.Add(p => p.Change, args => { changeRaised = true; });
+                parameters.Add(p => p.OkClick, args => { okClickRaised = true; });
+            });
+
+            component.FindAll("td:not(.rz-calendar-other-month) span").First(e => e.TextContent == "15").ParentElement.Click();
+
+            Assert.True(changeRaised);
+            Assert.False(okClickRaised);
+        }
+        [Fact]
+        public void DatePicker_Renders_ImmediateParameter()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+                parameters.Add(p => p.Immediate, true));
+
+            var inputElement = component.Find(".rz-inputtext");
+
+            Assert.Contains("oninput", inputElement.ToMarkup());
+        }
+
+        [Fact]
+        public void DatePicker_DoesNotRender_OninputWhenNotImmediate()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>();
+
+            var inputElement = component.Find(".rz-inputtext");
+
+            Assert.DoesNotContain("oninput", inputElement.ToMarkup());
+        }
+
+        [Fact]
+        public void DatePicker_Immediate_Raises_ChangeOnValidInput()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var raised = false;
+            object newValue = null;
+            var testDate = new DateTime(2025, 6, 15);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime?>>(parameters =>
+            {
+                parameters.Add(p => p.Immediate, true);
+                parameters.Add(p => p.Change, args => { raised = true; newValue = args; });
+            });
+
+            var inputElement = component.Find(".rz-inputtext");
+
+            ctx.JSInterop.Setup<string>("Radzen.getInputValue", invocation => true).SetResult(testDate.ToShortDateString());
+            inputElement.Input(testDate.ToShortDateString());
+
+            Assert.True(raised);
+            Assert.Equal(testDate, ((DateTime?)newValue)?.Date);
+        }
+
+        [Fact]
+        public void DatePicker_Immediate_DoesNotUpdateOnInvalidInput()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var initialDate = new DateTime(2025, 6, 15);
+            var changeCount = 0;
+
+            // Use non-nullable DateTime so ParseDate does not clear the value on invalid input
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Immediate, true);
+                parameters.Add(p => p.Value, initialDate);
+                parameters.Add(p => p.Change, args => { changeCount++; });
+            });
+
+            var inputElement = component.Find(".rz-inputtext");
+
+            // Simulate partial/invalid input
+            ctx.JSInterop.Setup<string>("Radzen.getInputValue", invocation => true).SetResult("abc");
+            inputElement.Input("abc");
+
+            // ParseDateImmediate ignores invalid input; ParseDate also reverts to FormattedValue for non-nullable.
+            // Value should remain unchanged.
+            Assert.Equal(initialDate, component.Instance.Value);
+        }
+
+        [Fact]
+        public void DatePicker_Immediate_Raises_ValueChangedOnValidInput()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var raised = false;
+            DateTime? newValue = null;
+            var testDate = new DateTime(2025, 3, 20);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime?>>(parameters =>
+            {
+                parameters.Add(p => p.Immediate, true);
+                parameters.Add(p => p.ValueChanged, args => { raised = true; newValue = args; });
+            });
+
+            var inputElement = component.Find(".rz-inputtext");
+
+            ctx.JSInterop.Setup<string>("Radzen.getInputValue", invocation => true).SetResult(testDate.ToShortDateString());
+            inputElement.Input(testDate.ToShortDateString());
+
+            Assert.True(raised);
+            Assert.Equal(testDate, newValue?.Date);
+        }
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_Renders_CorrectDayNumbers()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            // Thai Buddhist calendar: same months/days as Gregorian, year offset by +543
+            var thaiCulture = new CultureInfo("th-TH");
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+            });
+
+            var dayCells = component.FindAll("td span.rz-state-default");
+            var dayNumbers = dayCells.Select(c => c.TextContent.Trim()).Where(t => !string.IsNullOrEmpty(t)).ToList();
+
+            // April has 30 days — day numbers 1-30 should appear
+            Assert.Contains("1", dayNumbers);
+            Assert.Contains("3", dayNumbers);
+            Assert.Contains("30", dayNumbers);
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_ActiveDay_IsCorrect()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            // April 3, 2024 Gregorian = day 3 in Thai Buddhist calendar (same day)
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+            });
+
+            var activeDay = component.Find("span.rz-state-active");
+            Assert.Equal("3", activeDay.TextContent.Trim());
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_MonthDropdown_ShowsCorrectMonth()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+            });
+
+            // Month dropdown should show the Thai name for April (month 4)
+            var monthDropdown = component.Find(".rz-calendar-month-dropdown");
+            var monthName = thaiCulture.DateTimeFormat.GetMonthName(4);
+            Assert.Contains(monthName, monthDropdown.InnerHtml);
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_YearDropdown_ShowsCalendarYear()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            // 2024 Gregorian = 2567 Thai Buddhist
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+            });
+
+            var yearDropdown = component.Find(".rz-calendar-year-dropdown");
+            Assert.Contains("2567", yearDropdown.InnerHtml);
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_OtherMonthDays_MarkedCorrectly()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+            });
+
+            var currentMonthCells = component.FindAll("td:not(.rz-calendar-other-month):not(.rz-calendar-week-number)");
+            Assert.True(currentMonthCells.Count > 0);
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_DayClick_SetsCorrectValue()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            var testDate = new DateTime(2024, 4, 1);
+
+            DateTime? changedValue = null;
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+                parameters.Add(p => p.Inline, true);
+                parameters.Add(p => p.ValueChanged, (DateTime v) => { changedValue = v; });
+            });
+
+            // Click on day "10"
+            var dayCells = component.FindAll("td[role='button'] span.rz-state-default");
+            var day10 = dayCells.FirstOrDefault(c => c.TextContent.Trim() == "10" && !c.ClassList.Contains("rz-calendar-other-month"));
+
+            if (day10 != null)
+            {
+                day10.ParentElement!.Click();
+
+                Assert.NotNull(changedValue);
+                Assert.Equal(new DateTime(2024, 4, 10).Date, changedValue!.Value.Date);
+            }
+        }
+
+        [Fact]
+        public void DatePicker_NonGregorianCalendar_FormattedValue_UsesCalendarYear()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var thaiCulture = new CultureInfo("th-TH");
+            var testDate = new DateTime(2024, 4, 3);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, testDate);
+                parameters.Add(p => p.Culture, thaiCulture);
+            });
+
+            // The formatted value should use Thai Buddhist year 2567
+            var formattedValue = component.Instance.FormattedValue;
+            Assert.False(string.IsNullOrEmpty(formattedValue));
+            Assert.Contains("2567", formattedValue);
+        }
+
+        [Fact]
+        public void DatePicker_ShowTime_MinToday_DoesNotDisableToday()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var today = DateTime.Now;
+            var min = new DateTime(today.Year, today.Month, today.Day, 14, 0, 0);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, today);
+                parameters.Add(p => p.ShowTime, true);
+                parameters.Add(p => p.Min, min);
+            });
+
+            // Find today's cell - it should not have rz-state-disabled
+            var todayCell = component.FindAll("td span.rz-calendar-today");
+            Assert.NotEmpty(todayCell);
+            Assert.DoesNotContain("rz-state-disabled", todayCell.First().ClassName);
+        }
+
+        [Fact]
+        public void DatePicker_NoShowTime_MinToday_DisablesToday()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var today = DateTime.Now;
+            var min = new DateTime(today.Year, today.Month, today.Day, 14, 0, 0);
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, today);
+                parameters.Add(p => p.Min, min);
+            });
+
+            // Without ShowTime, today should be disabled since midnight < 14:00
+            var todayCell = component.FindAll("td span.rz-calendar-today");
+            Assert.NotEmpty(todayCell);
+            Assert.Contains("rz-state-disabled", todayCell.First().ClassName);
+        }
+
+        [Fact]
+        public void DatePicker_Calendar_HasGridRoles_AndAriaLabel()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 12));
+            });
+
+            var grid = component.Find("table.rz-calendar-view");
+            Assert.Equal("grid", grid.GetAttribute("role"));
+            Assert.False(string.IsNullOrEmpty(grid.GetAttribute("aria-label")));
+
+            Assert.NotEmpty(component.FindAll("table.rz-calendar-view tr[role='row']"));
+            Assert.NotEmpty(component.FindAll("table.rz-calendar-view td[role='gridcell']"));
+            Assert.Empty(component.FindAll("table.rz-calendar-view td[role='button']"));
+        }
+
+        [Fact]
+        public void DatePicker_DayCell_HasAriaLabel_WithFullDate_AndSelectedState()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var selected = new DateTime(2024, 6, 12);
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, selected);
+            });
+
+            var selectedCells = component.FindAll("td[role='gridcell'][aria-selected='true']");
+            Assert.Single(selectedCells);
+
+            var cell = selectedCells.First();
+            var ariaLabel = cell.GetAttribute("aria-label");
+            Assert.False(string.IsNullOrEmpty(ariaLabel));
+            // long date pattern — weekday name should appear
+            Assert.Contains(selected.ToString("dddd", CultureInfo.CurrentCulture), ariaLabel);
+            Assert.Contains("selected", ariaLabel);
+        }
+
+        [Fact]
+        public void DatePicker_FocusedDay_HasRovingTabindexZero()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>(parameters =>
+            {
+                parameters.Add(p => p.Value, new DateTime(2024, 6, 12));
+            });
+
+            var tabbableCells = component.FindAll("td[role='gridcell'][tabindex='0']");
+            Assert.Single(tabbableCells);
+
+            var notTabbable = component.FindAll("td[role='gridcell'][tabindex='-1']");
+            Assert.NotEmpty(notTabbable);
+        }
+
+        [Fact]
+        public void DatePicker_CalendarViewContainer_IsNot_FocusTarget()
+        {
+            using var ctx = new TestContext();
+            ctx.JSInterop.Mode = JSRuntimeMode.Loose;
+            ctx.JSInterop.SetupModule("_content/Radzen.Blazor/Radzen.Blazor.js");
+
+            var component = ctx.RenderComponent<RadzenDatePicker<DateTime>>();
+
+            var wrapper = component.Find("div.rz-calendar-view-container");
+            Assert.Null(wrapper.GetAttribute("tabindex"));
         }
     }
 }

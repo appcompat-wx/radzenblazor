@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Xunit;
 
@@ -112,6 +112,84 @@ namespace Radzen.Blazor.Tests
         public class ListObject
         {
             public List<string> Values { get; set; }
+        }
+
+        public class Order
+        {
+            public DateTime? OrderDate { get; set; }
+        }
+
+        [Fact]
+        public void GetProperty_Should_Resolve_DescriptionProperty()
+        {
+            var descriptionProperty = PropertyAccess.GetProperty(typeof(ISimpleInterface), nameof(ISimpleInterface.Description));
+
+            Assert.NotNull(descriptionProperty);
+        }
+
+        [Fact]
+        public void GetProperty_Should_Resolve_NameProperty()
+        {
+            var nameProperty = PropertyAccess.GetProperty(typeof(ISimpleInterface), nameof(ISimpleInterface.Name));
+
+            Assert.NotNull(nameProperty);
+        }
+
+        [Fact]
+        public void GetProperty_Should_Resolve_IdProperty()
+        {
+            var idProperty = PropertyAccess.GetProperty(typeof(ISimpleInterface), nameof(ISimpleBaseInterface.Id));
+            Assert.NotNull(idProperty);
+        }
+
+        [Fact]
+        public void GetPropertyType_Resolves_NullableDateTime_Date()
+        {
+            var propertyType = PropertyAccess.GetPropertyType(typeof(Order), "OrderDate.Date");
+
+            Assert.Equal(typeof(DateTime), propertyType);
+        }
+
+        interface ISimpleInterface : ISimpleNestedInterface
+        {
+            string Description { get; set; }
+        }
+
+        interface ISimpleNestedInterface : ISimpleBaseInterface
+        {
+            string Name { get; set; }
+        }
+
+        interface ISimpleBaseInterface
+        {
+            int Id { get; set; }
+        }
+
+        interface ISubInterface
+        {
+        }
+
+        class SubModel : ISubInterface
+        {
+            public bool SubModelProperty { get; set; }
+        }
+
+        class ModelWithInterfaceProperty
+        {
+            public ISubInterface SubModelInstance { get; set; }
+        }
+
+        [Fact]
+        public void GetValue_Resolves_Property_Through_Interface()
+        {
+            var model = new ModelWithInterfaceProperty
+            {
+                SubModelInstance = new SubModel { SubModelProperty = true }
+            };
+
+            var value = PropertyAccess.GetValue(model, "SubModelInstance.SubModelProperty");
+
+            Assert.Equal(true, value);
         }
     }
 }

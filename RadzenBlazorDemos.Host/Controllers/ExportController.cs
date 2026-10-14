@@ -1,4 +1,4 @@
-﻿using System.Linq.Dynamic.Core;
+using System.Linq.Dynamic.Core;
 using System.Data;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
@@ -77,7 +77,14 @@ namespace RadzenBlazorDemos
 
                 foreach (var column in columns)
                 {
-                    row.Add($"{GetValue(item, column.Key)}".Trim());
+                    var rawValue = $"{GetValue(item, column.Key)}".Trim();
+
+                    if (rawValue.Contains(",") || rawValue.Contains("\"") || rawValue.Contains("\n"))
+                    {
+                        rawValue = $"\"{rawValue.Replace("\"", "\"\"")}\"";
+                    }
+
+                    row.Add(rawValue);
                 }
 
                 sb.AppendLine(string.Join(",", row.ToArray()));
@@ -222,10 +229,8 @@ namespace RadzenBlazorDemos
             if (underlyingType == typeof(System.Guid) || underlyingType == typeof(System.DateTimeOffset))
                 return true;
 
-#if NET6_0_OR_GREATER
             if (underlyingType == typeof(System.DateOnly) || underlyingType == typeof(System.TimeOnly))
                 return true;
-#endif
             var typeCode = Type.GetTypeCode(underlyingType);
 
             switch (typeCode)
